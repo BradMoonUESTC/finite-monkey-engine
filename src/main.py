@@ -36,7 +36,65 @@ def check_function_vul(engine,lancedb,lance_table_name,project_audit):
     engine = AiEngine(None, project_taskmgr,lancedb,lance_table_name,project_audit)
     engine.check_function_vul()
     # print(result)
-# main.py
+def generate_output(output_path, project_id):
+    project_taskmgr = ProjectTaskMgr(project_id, engine)
+    entities = project_taskmgr.query_task_by_project_id(project.id)
+    
+    data = []
+    for entity in entities:
+        data.append({
+            '扫描结果': entity.result,         
+            '漏洞分类': entity.title,   
+            '是否有此风险': entity.result_gpt4,      
+            '合约名称': entity.name,  
+            '项目ID': entity.project_id,       
+            '任务ID': entity.id               
+        })
+    
+    if not data:
+        print("没有数据需要处理")
+        return
+        
+    df = pd.DataFrame(data)
+    
+    try:
+        # Process data
+        res_processor = ResProcessor(df)
+        processed_df = res_processor.process()
+        
+        # Save to Excel
+        excel_path = output_path
+        processed_df.to_excel(excel_path, index=False)
+        print(f"Excel文件已保存至: {excel_path}")
+        
+        # Generate and save English Markdown
+        en_md_path = os.path.splitext(output_path)[0] + '_en.md'
+        with open(en_md_path, 'w', encoding='utf-8') as f:
+            for _, row in processed_df.iterrows():
+                if "true" in str(row['是否有此风险']):   
+                    # Write title as h1 heading
+                    f.write(f"# {row['漏洞分类']}\n\n")
+                    # Write English result as content
+                    f.write(f"{row['扫描结果']}\n\n")
+                    f.write("---\n\n")  # Add separator between entries
+                
+        print(f"英文Markdown文件已保存至: {en_md_path}")
+
+        # Generate and save Chinese Markdown
+        cn_md_path = os.path.splitext(output_path)[0] + '_cn.md'
+        with open(cn_md_path, 'w', encoding='utf-8') as f:
+            for _, row in processed_df.iterrows():
+                if "true" in str(row['是否有此风险']):   
+                    # Write title as h1 heading
+                    f.write(f"# {row['漏洞分类']}\n\n")
+                    # Write Chinese result as content
+                    f.write(f"{row['中文结果']}\n\n")
+                    f.write("---\n\n")  # Add separator between entries
+                
+        print(f"中文Markdown文件已保存至: {cn_md_path}")
+        
+    except Exception as e:
+        print(f"保存文件时发生错误: {e}")
 def generate_excel(output_path, project_id):
     project_taskmgr = ProjectTaskMgr(project_id, engine)
     entities = project_taskmgr.query_task_by_project_id(project.id)
@@ -45,7 +103,8 @@ def generate_excel(output_path, project_id):
     for entity in entities:
         data.append({
             '扫描结果': entity.result,         # 原始英文扫描结果
-            '漏洞分类': entity.title,          # 漏洞分类
+            '漏洞分类': entity.title,   
+            '是否有此风险': entity.result_gpt4,       # 漏洞分类
             '合约名称': entity.name,  # 合约名称
             '项目ID': entity.project_id,       # 项目ID
             '任务ID': entity.id               # 任务ID
@@ -78,7 +137,7 @@ if __name__ == '__main__':
         dataset_base = "./src/dataset/agent-v1-c4"
         projects = load_dataset(dataset_base)
 
-        project_id = 'redpacket'
+        project_id = 'tokenlisting556611'
         project_path = ''
         project = Project(project_id, projects[project_id])
         
@@ -90,7 +149,8 @@ if __name__ == '__main__':
 
         end_time=time.time()
         print("Total time:",end_time-start_time)
-        generate_excel("./output.xlsx",project_id)
+        # generate_excel("./output.xlsx",project_id)
+        generate_output("./output.xlsx", project_id)
         
         
     if switch_production_or_test == 'prod':

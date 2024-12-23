@@ -32,14 +32,18 @@ class AiEngine(object):
         response_vul = ""
         result = task.get_result(is_gpt4)
         prompt=task.content
+        title=task.title
         if result is not None and len(result) > 0:
             print("\t skipped (scanned)")
         else:
             print("\t to scan")
-            response_vul=common_ask(prompt)
+            response_vul=ask_claude(prompt)
             print(response_vul)
-            response_vul = response_vul if response_vul is not None else ""                
-            self.project_taskmgr.update_result(task.id, response_vul, "","")
+            response_vul = response_vul if response_vul is not None else ""
+            breif_prompt=f"基于扫描结果，对这个结果进行一个单词的总结，判断一下这个结果的结论是否存在{title}风险，输出为json形式，如果结果为有此{title}风险，则输出为{{'risk':true}}，否则输出为{{'risk':false}}"             
+            response_breif=common_ask_for_json(response_vul+breif_prompt)
+            print(response_breif)
+            self.project_taskmgr.update_result(task.id, response_vul, response_breif,"")
     def do_scan(self, is_gpt4=False, filter_func=None):
         # self.llm.init_conversation()
 

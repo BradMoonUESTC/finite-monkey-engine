@@ -43,6 +43,7 @@ class ResProcessor:
             '中文结果',
             '扫描结果',
             '漏洞分类',
+            '是否有此风险',
             '合约名称',
             '项目ID',
             '任务ID'
@@ -56,7 +57,7 @@ class ResProcessor:
             
         translate_prompt = f"""请将以下风险分析结果翻译成中文：
 {result}
-只需要直接输出翻译结果，按原文翻译，不能丢失任何原始信息，无需其他解释。
+只需要直接输出翻译结果，按原文翻译，不能丢失任何原始信息，无需其他解释,避免出现markdown语法的一级标题。
 """
         try:
             translated_text = ask_claude(translate_prompt)
