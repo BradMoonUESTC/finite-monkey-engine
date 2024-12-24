@@ -326,7 +326,7 @@ def common_get_embedding(text: str):
         return response_content
     except requests.exceptions.RequestException as e:
         print(f"Error: {e}")
-        return list(np.zeros(4096))  # 返回长度为4096的全0数组
+        return list(np.zeros(3072))  # 返回长度为3072的全0数组
 
 def common_get_embedding2(text: str):
     api_key = os.getenv('OPENAI_EMBEDDING_API_KEY')
