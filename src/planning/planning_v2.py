@@ -16,27 +16,27 @@ class PlanningV2(object):
         if len(tasks) > 0:
             return
 
-        # Group functions by contract
-        contracts = {}
-        for function in self.project.functions_to_check:
-            contract_name = function['contract_name']
-            if contract_name not in contracts:
-                contracts[contract_name] = {
-                    'contract_code': function['contract_code'],
-                    'relative_file_path': function['relative_file_path'],
-                    'absolute_file_path': function['absolute_file_path']
+        # Group files by name
+        files = {}
+        for file_info in self.project.functions_to_check:
+            file_name = file_info['name']
+            if file_name not in files:
+                files[file_name] = {
+                    'contract_code': file_info['contract_code'],
+                    'relative_file_path': file_info['relative_file_path'],
+                    'absolute_file_path': file_info['absolute_file_path']
                 }
 
-        # Create tasks for each contract and prompt
-        for contract_name, contract_info in tqdm(contracts.items(), desc="Creating tasks for contracts"):
-            prompts = PromptAssembler.assemble_prompt(contract_info['contract_code'])
+        # Create tasks for each file and prompt
+        for file_name, file_info in tqdm(files.items(), desc="Creating tasks for files"):
+            prompts = PromptAssembler.assemble_prompt(file_info['contract_code'])
             
             # Create a task for each prompt
             for i, prompt_data in enumerate(prompts):
                 task = Project_Task(
                     project_id=self.project.project_id,
-                    name=contract_name,
-                    content=prompt_data["prompt"],  # Use the prompt as content
+                    name=file_name,
+                    content=prompt_data["prompt"],
                     keyword=str(random.random()),
                     business_type='',
                     sub_business_type='',
@@ -46,16 +46,16 @@ class PlanningV2(object):
                     result_gpt4='',
                     score='',
                     category='',
-                    contract_code=contract_info['contract_code'],
+                    contract_code=file_info['contract_code'],
                     risklevel='',
                     similarity_with_rule='',
                     description='',
                     start_line=0,
                     end_line=0,
-                    relative_file_path=contract_info['relative_file_path'],
-                    absolute_file_path=contract_info['absolute_file_path'],
+                    relative_file_path=file_info['relative_file_path'],
+                    absolute_file_path=file_info['absolute_file_path'],
                     recommendation='',
-                    title=prompt_data["title"],  # Use the title from prompt data
+                    title=prompt_data["title"],
                     business_flow_code='',
                     business_flow_lines='',
                     business_flow_context='',

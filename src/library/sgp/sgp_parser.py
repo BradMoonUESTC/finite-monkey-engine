@@ -855,46 +855,25 @@ def find_fa_functions(text, filename, hash):
 
     return functions
 
-def get_antlr_parsing(path):
-    with open(path, 'r', encoding='utf-8', errors="ignore") as file:
-        code = file.read()
-        hash_value=hash(code)
-    filename = os.path.basename(path)
-    if ".rs" in str(path):
-        rust_functions = find_rust_functions(code, filename,hash_value)
-        return rust_functions
-    if ".py" in str(path):
-        python_functions = find_python_functions(code, filename,hash_value)
-        return python_functions
-    if ".move" in str(path):
-        move_functions = find_move_functions(code, filename,hash_value)
-        return move_functions
-    if ".cairo" in str(path):
-        cairo_functions = find_cairo_functions(code, filename,hash_value)
-        return cairo_functions
-    if ".tact" in str(path):
-        tact_functions = find_tact_functions(code, filename,hash_value)
-        return tact_functions
-    if ".fc" in str(path):
-        func_functions = find_func_functions(code, filename,hash_value)
-        return func_functions
-    if ".fr" in str(path):  # Add FA file handling
-        fa_functions = find_fa_functions(code, filename,hash_value)
-        return fa_functions
-    if ".java" in str(path):
-        java_functions = find_java_functions(code, filename,hash_value)
-        return java_functions
-    else:
-        input_stream = ANTLRInputStream(code)
-        lexer = SolidityLexer(input_stream)
-        token_stream = CommonTokenStream(lexer)
-        parser = SolidityParser(token_stream)
-        tree = parser.sourceUnit()
-
-        visitor = SolidityInfoVisitor(code)
-        visitor.visit(tree)
-
-        return visitor.results
+def get_antlr_parsing(filename):
+    with open(filename, 'r', encoding='utf-8', errors='ignore') as f:
+        content = f.read()
+        
+    # 创建一个包含整个文件内容的结果对象
+    result = {
+        'type': 'FileDefinition',
+        'name': os.path.basename(filename),
+        'content': content,
+        'contract_name': os.path.basename(filename).split('.')[0],
+        'contract_code': content,
+        'modifiers': [],
+        'stateMutability': None,
+        'returnParameters': None,
+        'visibility': 'public',
+        'node_count': len(content.split('\n'))
+    }
+    
+    return [result]
 
 
 

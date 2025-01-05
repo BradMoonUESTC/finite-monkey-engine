@@ -156,7 +156,6 @@ class BaseProjectFilter(object):
 
 
 def parse_project(project_path, project_filter = None):
-
     if project_filter is None:
         project_filter = BaseProjectFilter([], [])
 
@@ -164,14 +163,14 @@ def parse_project(project_path, project_filter = None):
     if os.environ.get('IGNORE_FOLDERS'):
         ignore_folders = set(os.environ.get('IGNORE_FOLDERS').split(','))
     ignore_folders.add('.git')
+    
     all_results = []
     for dirpath, dirs, files in os.walk(project_path):
         dirs[:] = [d for d in dirs if d not in ignore_folders]
         for file in files:
             to_scan = not project_filter.filter_file(dirpath, file)
-            sol_file = os.path.join(dirpath, file) # relative path
-            absolute_path = os.path.abspath(sol_file)  # absolute path
-            print("parsing file: ", sol_file, " " if to_scan else "[skipped]")
+            sol_file = os.path.join(dirpath, file)
+            absolute_path = os.path.abspath(sol_file)
             
             if to_scan:
                 results = get_antlr_parsing(sol_file)
@@ -180,22 +179,7 @@ def parse_project(project_path, project_filter = None):
                     result['absolute_file_path'] = absolute_path
                 all_results.extend(results)
     
-    functions = [result for result in all_results if result['type'] == 'FunctionDefinition']
-    # fix func name 
-    fs = []
-    for func in functions:
-        name = func['name'][8:] # remove special_前缀，具体为啥我也忘了，似乎是为了考虑特定的function name
-        func['name'] = "%s.%s" % (func['contract_name'], name)
-        fs.append(func)
-
-    fs_filtered = fs[:]
-    # 2. filter contract 
-    fs_filtered = [func for func in fs_filtered if not project_filter.filter_contract(func)]
-
-    # 3. filter functions 
-    fs_filtered = [func for func in fs_filtered if not project_filter.filter_functions(func)]
-
-    return fs, fs_filtered 
+    return all_results, all_results
 
 
 if __name__ == '__main__':
