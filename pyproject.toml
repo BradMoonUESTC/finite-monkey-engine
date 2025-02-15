@@ -12,6 +12,7 @@ dependencies = [
     "certifi>=2024.8.30",
     "charset-normalizer>=3.4.0",
     "colorama>=0.4.6",
+    "dependency-injector>=4.45.0",
     "et-xmlfile>=1.1.0",
     "idna>=3.10",
     "joblib>=1.4.2",
@@ -19,6 +20,9 @@ dependencies = [
     "openpyxl>=3.1.5",
     "pandas>=1.24.4",
     "psycopg2-binary>=2.9.9",
+    "pydantic>=2.11.0a2",
+    "pydantic-ai>=0.0.24",
+    "pydantic-settings>=2.7.1",
     "python-dateutil>=2.9.0.post0",
     "python-dotenv>=1.0.1",
     "pytz>=2024.2",
@@ -30,48 +34,58 @@ dependencies = [
     "SQLAlchemy>=2.0.35",
     "threadpoolctl>=3.5.0",
     "tqdm>=4.66.5",
+    "tree-sitter>=0.24.0",
+    "tree-sitter-solidity>=1.2.11",
     "typing_extensions>=4.12.2",
     "tzdata>=2024.2",
     "urllib3>=2.2.3",
 ]
 
-[project.optional-dependencies]
+[project.urls]
+"Homepage" = "https://github.com/BradMoonUESTC/finite-monkey-engine"
+"Bug Reports" = "https://github.com/BradMoonUESTC/finite-monkey-engine/issues"
+"Funding" = "https://github.com/BradMoonUESTC/finite-monkey-engine"
+"Say Thanks!" = "https://github.com/BradMoonUESTC/finite-monkey-engine"
+"Source" = "https://github.com/BradMoonUESTC/finite-monkey-engine"
 
-dev = ["mypy>=1.11.1", "ruff>=0.6.1"]
+[project.scripts]
+finite_monkey_engine = "finite_monkey_engine:main"
+finite_monkey_root = "root.py:root"
 
 [build-system]
 requires = ["setuptools>=73.0.0", "wheel"]
 build-backend = "setuptools.build_meta"
+[tool.uv.sources]
+"finite_monkey_engine" = { workspace = true }
 
-[tool.setuptools]
-packages = ["assistant"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["finite_monkey_engine"]
+
+
+[tool.uv.workspace]
+"members" = ["/FiniteMonkey.egg-info/entry_points.txt"]
+
+[tool.uv]
+package = true
+compile-bytecode = true
+prerelease = "allow"
+
+[tool.uv.pip]
+compile-bytecode = true
+emit-build-options = true
+emit-index-annotation = true
+emit-marker-expression = true
+python = "3.12"
+python-version = "3.12"
+universal = true
+
 
 [tool.setuptools.package-dir]
-"assistant" = "src/assistant"
-
-[tool.setuptools.package-data]
-"*" = ["py.typed"]
-
-[tool.ruff]
-lint.select = [
-    "E",    # pycodestyle
-    "F",    # pyflakes
-    "I",    # isort
-    "D",    # pydocstyle
-    "D401", # First line should be in imperative mood
-    "T201",
-    "UP",
-]
-lint.ignore = ["UP006", "UP007", "UP035", "D417", "E501"]
-
-[tool.ruff.lint.per-file-ignores]
-"tests/*" = ["D", "UP"]
-
-[tool.ruff.lint.pydocstyle]
-convention = "google"]
+"finite_monkey_engine" = "."
 
 [tool.black]
-target-version = ['py310']
+target-version = ['py312']
 line-length = 120
 skip-string-normalization = true
 skip-magic-trailing-comma = true
@@ -83,7 +97,7 @@ force-exclude = '''
 '''
 
 [tool.isort]
-py_version = 310
+py_version = 312
 sections = ["FUTURE", "STDLIB", "THIRDPARTY", "FIRSTPARTY", "LOCALFOLDER"]
 default_section = "THIRDPARTY"
 known_third_party = []
@@ -103,66 +117,21 @@ skip_glob = ["docs/*", "setup.py"]
 filter_files = true
 
 [tool.ruff]
-target-version = "py310"
+target-version = "py312"
 line-length = 120
-indent-width = 4
 extend-exclude = ["docs", "test", "tests"]
-
-[tool.ruff.lint]
-select = ["F", "E"]
-extend-select = ["W", "C90", "I", "N", "B", "A", "C4", "PERF", "RUF"]
 ignore = ["I001"]
 fixable = ["ALL"]
 unfixable = []
 preview = true
 dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 
-[tool.ruff.lint.isort]
-force-single-line = true
-force-sort-within-sections = false
-lines-after-imports = 2
-known-first-party = []
-known-local-folder = []
-known-third-party = []
-section-order = [
-    "future",
-    "standard-library",
-    "third-party",
-    "first-party",
-    "local-folder",
-]
-
-[tool.ruff.lint.mccabe]
-max-complexity = 24
-
-[tool.ruff.lint.pycodestyle]
-ignore-overlong-task-comments = true
-
-[tool.ruff.lint.pydocstyle]
-convention = "numpy"
-
-[tool.ruff.lint.flake8-annotations]
-allow-star-arg-any = true
-ignore-fully-untyped = true
-
-[tool.ruff.lint.pylint]
-max-args = 5
-max-branches = 12
-max-locals = 15
-max-statements = 50
-
-[tool.ruff.format]
-quote-style = "double"
-indent-style = "space"
-skip-magic-trailing-comma = false
-line-ending = "auto"
-preview = false
-docstring-code-format = true
 
 [tool.mypy]
 # Platform configuration
 python_version = "3.12"
 # imports related
+plugins = ['pydantic.mypy']
 ignore_missing_imports = true
 follow_imports = "silent"
 # None and Optional handling
