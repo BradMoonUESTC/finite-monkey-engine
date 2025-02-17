@@ -10,15 +10,12 @@ from planning import PlanningV2
 from prompts import prompts
 from sqlalchemy import create_engine
 from dao import CacheManager, ProjectTaskMgr
-import os
 import pandas as pd
 from openpyxl import Workbook,load_workbook
 from openpyxl.utils.dataframe import dataframe_to_rows
 from codebaseQA.rag_processor import RAGProcessor
 from res_processor.res_processor import ResProcessor
 
-import dotenv
-dotenv.load_dotenv()
 
 def scan_project(project, db_engine):
     # 1. parsing projects  
@@ -136,7 +133,7 @@ if __name__ == '__main__':
     if switch_production_or_test == 'test':
         start_time=time.time()
         db_url_from = os.environ.get("DATABASE_URL")
-        engine = create_engine(db_url_from)
+        engine = create_engine(db_url_from,  echo=True)
         
         dataset_base = "./src/dataset/agent-v1-c4"
         projects = load_dataset(dataset_base)
@@ -186,7 +183,7 @@ if __name__ == '__main__':
 
         # Database setup
         db_url_from = os.environ.get("DATABASE_URL")
-        engine = create_engine(db_url_from)
+        engine = create_engine(db_url_from, echo=True)
 
         # Load projects
         projects = load_dataset(dataset_base, args.id, folder_name)

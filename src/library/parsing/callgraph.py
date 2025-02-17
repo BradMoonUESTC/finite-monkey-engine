@@ -90,10 +90,8 @@ class CallGraph:
         self.root = root
         self.files = {}
         self.call_data = {}
-
         self.__parse_all_files()
         self.__run_jar()
-
         self.__clean()
     
     def get_rel_path(self, path:str)->str:

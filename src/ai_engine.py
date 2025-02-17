@@ -16,8 +16,8 @@ from dao.entity import Project_Task
 from prompt_factory.prompt_assembler import PromptAssembler
 from prompt_factory.core_prompt import CorePrompt
 from openai_api.openai import *
-class AiEngine(object):
 
+class AiEngine(object):
     def __init__(self, planning, taskmgr,lancedb,lance_table_name,project_audit):
         # Step 1: 获取results
         self.planning = planning

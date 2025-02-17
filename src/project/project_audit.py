@@ -1,55 +1,65 @@
 import csv
-from .project_parser import parse_project, BaseProjectFilter
+from typing import Any, Dict, Tuple, Union, List, Set
+from os import path
+from nodes_config import nodes_config
+from library.parsing.callgraph import CallGraph
+from  .project_parser import parse_project, BaseProjectFilter
 import re
 from library.sgp.utilities.contract_extractor import extract_state_variables_from_code, extract_state_variables_from_code_move
-
+__all__ = ('ProjectAudit')
 class ProjectAudit(object):
-    def analyze_function_relationships(self, functions_to_check):
+    def analyze_function_relationships(self, functions_to_check: List[Dict]) -> Tuple[Dict[str, Dict[str, Set]], Dict[str, Dict]]:
+        # Construct a mapping and calling relationship dictionary from function name to function information
         # 构建函数名到函数信息的映射和调用关系字典
         func_map = {}
         relationships = {'upstream': {}, 'downstream': {}}
-        
+
         for idx, func in enumerate(functions_to_check):
             func_name = func['name'].split('.')[-1]
+            func['func_name'] = func_name
             func_map[func_name] = {
                 'index': idx,
                 'data': func
             }
-            
+        
+        # Analyze the calling relationship of each function
         # 分析每个函数的调用关系
-        for func in functions_to_check:
+        for idx,func in enumerate(functions_to_check):
             func_name = func['name'].split('.')[-1]
             content = func['content'].lower()
-            
+
             if func_name not in relationships['upstream']:
                 relationships['upstream'][func_name] = set()
             if func_name not in relationships['downstream']:
                 relationships['downstream'][func_name] = set()
-                
+
+            # Check whether other functions call the current function
             # 检查其他函数是否调用了当前函数
             for other_func in functions_to_check:
                 if other_func == func:
                     continue
-                    
+
                 other_name = other_func['name'].split('.')[-1]
                 other_content = other_func['content'].lower()
-                
-                # 如果其他函数调用了当前函数
+
+                # If other functions call the current function
                 if re.search(r'\b' + re.escape(func_name.lower()) + r'\b', other_content):
                     relationships['upstream'][func_name].add(other_name)
+
                     if other_name not in relationships['downstream']:
                         relationships['downstream'][other_name] = set()
                     relationships['downstream'][other_name].add(func_name)
-                
-                # 如果当前函数调用了其他函数
+
+                # If the current function calls other functions
                 if re.search(r'\b' + re.escape(other_name.lower()) + r'\b', content):
                     relationships['downstream'][func_name].add(other_name)
+
                     if other_name not in relationships['upstream']:
                         relationships['upstream'][other_name] = set()
                     relationships['upstream'][other_name].add(func_name)
-        
-        return relationships, func_map
 
+        return relationships, func_map
+    
     def build_call_tree(self, func_name, relationships, direction, func_map, visited=None):
         if visited is None:
             visited = set()
@@ -74,7 +84,7 @@ class ProjectAudit(object):
         
         # 递归构建每个相关函数的调用树
         for related_func in related_funcs:
-            child_tree = self.build_call_tree(related_func, relationships, direction, func_map, visited.copy())
+            child_tree: None | dict[str, Any] = self.build_call_tree(related_func, relationships, direction, func_map, visited.copy())
             if child_tree:
                 node['children'].append(child_tree)
         
@@ -98,26 +108,32 @@ class ProjectAudit(object):
             new_prefix = prefix + ('  ' if level == 0 else '│ ' if not is_last else '  ')
             self.print_call_tree(child, level + 1, new_prefix + ('└─' if is_last else '├─'))
 
-    def __init__(self, project_id, project_path, db_engine):
-        self.project_id = project_id
-        self.project_path = project_path
-        self.functions = []
-        self.functions_to_check = []
-        self.tasks = []
+ #project_id, project_path, db_engine
+    def __init__(self, config:nodes_config) -> None:
+        self.config:nodes_config = config
+        self.project_id:str = config.id
+        self.project_path:str = config.base_dir
+        self.cg = CallGraph(root=path.join(config.base_dir, config.src_dir))
+         
+        self.functions_to_check:list = []
+        self.functions:list = []
+        self.tasks:list = []
         self.taskkeys = set()
+        
 
-    def parse(self, white_files, white_functions):
+    def parse(self, white_files, white_functions) -> None:
         parser_filter = BaseProjectFilter(white_files, white_functions)
         functions, functions_to_check = parse_project(self.project_path, parser_filter)
         self.functions = functions
         self.functions_to_check = functions_to_check
         
-
+        relationships:Dict[str,Dict]
+        func_map:Dict
         # 分析函数关系
-        relationships, func_map = self.analyze_function_relationships(functions_to_check)
+        relationships,func_map = self.analyze_function_relationships(functions_to_check)
         
         # 为每个函数构建并打印调用树
-        call_trees = []
+        call_trees:list = []
         for func in functions_to_check:
             func_name = func['name'].split('.')[-1]
             # print(f"\nAnalyzing function: {func_name}")
@@ -140,7 +156,7 @@ class ProjectAudit(object):
                 'state_variables': state_variables_text
             })
         
-        self.call_trees = call_trees
+        self.call_trees:list = call_trees
 
     def get_function_names(self):
         return set([function['name'] for function in self.functions])

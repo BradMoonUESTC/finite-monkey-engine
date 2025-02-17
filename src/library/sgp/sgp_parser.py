@@ -4,15 +4,13 @@ from typing import Dict
 import re
 from antlr4.CommonTokenStream import CommonTokenStream
 from antlr4.InputStream import InputStream as ANTLRInputStream
-
-from .parser.SolidityLexer import SolidityLexer
-from .parser.SolidityParser import SolidityParser
-
-from .sgp_visitor import SGPVisitorOptions, SGPVisitor,SolidityInfoVisitor
-from .sgp_error_listener import SGPErrorListener
-from .ast_node_types import SourceUnit
-from .tokens import build_token_list
-from .utils import string_from_snake_to_camel_case
+from library.sgp.parser.SolidityLexer import SolidityLexer
+from library.sgp.parser.SolidityParser import SolidityParser 
+from library.sgp.sgp_visitor import SGPVisitorOptions, SGPVisitor,SolidityInfoVisitor
+from library.sgp.sgp_error_listener import SGPErrorListener
+from library.sgp.ast_node_types import SourceUnit
+from library.sgp.tokens import build_token_list
+from library.sgp.utils import string_from_snake_to_camel_case
 
 
 class ParserError(Exception):

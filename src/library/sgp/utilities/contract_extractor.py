@@ -1,8 +1,8 @@
 import re
 from antlr4 import *
-from sgp.parser.SolidityLexer import SolidityLexer
-from sgp.parser.SolidityParser import SolidityParser
-from sgp.parser.SolidityListener import SolidityListener
+from library.sgp.parser.SolidityLexer import SolidityLexer
+from library.sgp.parser.SolidityParser import SolidityParser
+from library.sgp.parser.SolidityListener import SolidityListener
 from colorama import Fore, init
 
 

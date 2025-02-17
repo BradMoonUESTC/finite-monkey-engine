@@ -9,29 +9,43 @@ requires-python = ">=3.10"
 
 dependencies = [
     "antlr4-python3-runtime>=4.13.2",
+    "asyncpg>=0.30.0",
     "certifi>=2024.8.30",
     "charset-normalizer>=3.4.0",
     "colorama>=0.4.6",
     "dependency-injector>=4.45.0",
+    "devtools>=0.9.0",
     "et-xmlfile>=1.1.0",
+    "fastapi>=0.115.8",
+    "future>=1.0.0",
     "idna>=3.10",
+    "ipython>=8.32.0",
     "joblib>=1.4.2",
+    "lancedb>=0.19.0",
+    "logging>=0.4.9.6",
     "numpy>=1.24.4",
+    "ollama>=0.4.7",
+    "openai>=1.63.0",
     "openpyxl>=3.1.5",
     "pandas>=1.24.4",
     "psycopg2-binary>=2.9.9",
     "pydantic>=2.11.0a2",
     "pydantic-ai>=0.0.24",
+    "pydantic-graph>=0.0.24",
     "pydantic-settings>=2.7.1",
-    "python-dateutil>=2.9.0.post0",
+    "pylance>=0.23.0",
+    "python-box>=7.3.2",
+    "python-dateutil==2.8.2",
     "python-dotenv>=1.0.1",
     "pytz>=2024.2",
     "requests>=2.32.3",
+    "rich>=13.9.4",
     "scikit-learn>=1.3.2",
     "scipy>=1.10.1",
     "simplejson>=3.19.3",
     "six>=1.16.0",
-    "SQLAlchemy>=2.0.35",
+    "sqlalchemy>=2.0.35",
+    "sqlalchemy-orm>=1.2.10",
     "threadpoolctl>=3.5.0",
     "tqdm>=4.66.5",
     "tree-sitter>=0.24.0",
@@ -50,7 +64,7 @@ dependencies = [
 
 [project.scripts]
 finite_monkey_engine = "finite_monkey_engine:main"
-finite_monkey_root = "root.py:root"
+finite_monkey_root = "finite_monkey_engine.root_service:main"
 
 [build-system]
 requires = ["setuptools>=73.0.0", "wheel"]
@@ -58,6 +72,9 @@ build-backend = "setuptools.build_meta"
 [tool.uv.sources]
 "finite_monkey_engine" = { workspace = true }
 
+[tool.finite-monkey-engine]
+AZURE_API_VERSION = "test"
+COMMON_PROJECT = "pyproject"
 
 [tool.hatch.build.targets.wheel]
 packages = ["finite_monkey_engine"]
@@ -86,7 +103,7 @@ universal = true
 
 [tool.black]
 target-version = ['py312']
-line-length = 120
+#line-length = 120
 skip-string-normalization = true
 skip-magic-trailing-comma = true
 force-exclude = '''
@@ -109,22 +126,12 @@ include_trailing_comma = true
 force_grid_wrap = 0
 use_parentheses = true
 ensure_newline_before_comments = true
-line_length = 120
+
 split_on_trailing_comma = true
 lines_after_imports = 2
 force_single_line = true
 skip_glob = ["docs/*", "setup.py"]
 filter_files = true
-
-[tool.ruff]
-target-version = "py312"
-line-length = 120
-extend-exclude = ["docs", "test", "tests"]
-ignore = ["I001"]
-fixable = ["ALL"]
-unfixable = []
-preview = true
-dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 
 
 [tool.mypy]

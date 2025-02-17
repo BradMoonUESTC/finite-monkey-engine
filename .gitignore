@@ -18,3 +18,6 @@ src/dataset/agent-v1-c4/datasets.json
 src/.DS_Store
 .env
 tests/*
+uv.lock
+callgraph.json
+lancedbsrc1/lancedb_src*

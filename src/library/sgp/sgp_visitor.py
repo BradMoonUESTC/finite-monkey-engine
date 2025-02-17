@@ -6,11 +6,11 @@ from antlr4 import ParserRuleContext
 from antlr4.tree.Tree import ParseTree,ParseTreeVisitor
 from antlr4.error.Errors import RecognitionException
 
-from sgp.utilities.contract_extractor import extract_contract_with_name
+from library.sgp.utilities.contract_extractor import extract_contract_with_name
 
 
-from .parser.SolidityParser import SolidityParser as SP
-from .parser.SolidityVisitor import SolidityVisitor
+from library.sgp.parser.SolidityParser import SolidityParser as SP
+from library.sgp.parser.SolidityVisitor import SolidityVisitor
 
 
 from .ast_node_types import *

@@ -8,13 +8,16 @@ from datetime import datetime
 from tqdm import tqdm
 
 from openai_api.openai import common_get_embedding
+from project.project_audit import ProjectAudit
 
 class RAGProcessor:
-    def __init__(self, functions_to_check: List[Dict[str, Any]], db_path: str = "./lancedb", project_id:str=None):
-        os.makedirs(db_path, exist_ok=True)
-        
-        self.db = lancedb.connect(db_path)
-        self.table_name = f"lancedb_{project_id}"
+    def __init__(self, id:str=None, audit:ProjectAudit=None):
+        self.db_path: str = os.path.join(os.getcwd(),f"lancedb{id}")
+        self.audit:ProjectAudit = audit
+        os.makedirs(name=self.db_path, exist_ok=True)
+        functions_to_check: List[Dict[str, Any]] = audit.functions_to_check
+        self.db = lancedb.connect(self.db_path)
+        self.table_name = f"lancedb_{id}"
         
         # 创建schema
         self.schema = pa.schema([

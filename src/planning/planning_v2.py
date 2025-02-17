@@ -8,16 +8,19 @@ from tqdm import tqdm
 import pickle
 from openai_api.openai import *
 import re
+from project.project_audit import ProjectAudit
+from dao.task_mgr import ProjectTaskMgr
+from library.parsing.callgraph import CallGraph
 
 '''
 根据每个function 的 functionality embbeding 匹配结果 
 '''
 class PlanningV2(object):
-    def __init__(self, project,taskmgr) -> None:
-        self.project = project
-        self.taskmgr=taskmgr
-        self.scan_list_for_larget_context=[]
-
+    def __init__(self, project:ProjectAudit,taskmgr:ProjectTaskMgr) -> None:
+        self.project:ProjectAudit=project
+        self.taskmgr:ProjectTaskMgr=taskmgr
+        self.callgraph:CallGraph = project.cg
+        self.scan_list_for_larget_context:list=[]
     
     def ask_openai_for_business_flow(self,function_name,contract_code_without_comment):
         prompt=f"""

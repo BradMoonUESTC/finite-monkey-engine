@@ -2,9 +2,9 @@ import re
 
 import antlr4
 from collections import defaultdict
-from parser.SolidityLexer import SolidityLexer
-from parser.SolidityParser import SolidityParser
-from parser.SolidityListener import SolidityListener
+from library.parsing.SolidityLexer import SolidityLexer
+from library.parsing.SolidityParser import SolidityParser
+from library.sgp.parser.SolidityListener import SolidityListener
 
 class FunctionListener(SolidityListener):
     def __init__(self):
@@ -154,12 +154,12 @@ class FunctionListener(SolidityListener):
         if self.current_function:
             # We are inside a function and we found a function call
             a = ctx.getText()
-            called_function = re.sub('\(.*\)$', '', ctx.getText())  # get the name of the called function
+            called_function = re.sub('(.*)$', '', ctx.getText())  # get the name of the called function
             self.functions[self.current_function]['calls'].add(called_function)
             self.call_graph[self.current_function].add(called_function)
             self.callers_graph[called_function].add(self.current_function)
 
-    def enterIdentifier(self, ctx:SolidityParser.Identifier):
+    def enterIdentifier(self, ctx:SolidityParser):
         if self.current_function:
             identifier = ctx.getText()
             if identifier and identifier in self.state_variables:
