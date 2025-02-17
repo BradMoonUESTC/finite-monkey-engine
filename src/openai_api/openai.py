@@ -262,7 +262,7 @@ def common_get_embedding(text: str):
         raise ValueError("OPENAI_API_KEY environment variable is not set")
 
     api_base = os.getenv('OPENAI_API_BASE', 'api.openai.com')
-    model = os.getenv("PRE_TRAIN_MODEL", "text-embedding-3-large")
+    model = os.getenv("EMBEDDING_MODEL", "text-embedding-3-large")
     
     headers = {
         "Authorization": f"Bearer {api_key}",
