@@ -21,3 +21,4 @@ tests/*
 uv.lock
 callgraph.json
 lancedbsrc1/lancedb_src*
+*/FiniteMonkey.egg-info/*

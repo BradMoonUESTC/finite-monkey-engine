@@ -4,7 +4,7 @@ from library.sgp.parser.SolidityLexer import SolidityLexer
 from library.sgp.parser.SolidityParser import SolidityParser
 from library.sgp.parser.SolidityListener import SolidityListener
 from colorama import Fore, init
-
+from os import path
 
 def extract_solc_version(filename):
     with open(filename, 'r') as file:
@@ -332,7 +332,7 @@ def extract_function_from_solidity(function_name, solidity_file_path):
 
             match = function_pattern.search(contract_body)
         if match is None:
-            raise ValueError(f"No function found with name: {function_name} in contract: {contract_name}")
+            raise ValueError(f"No function found with name: {function_name} in contract: {path.basename(solidity_file_path)}")
         start = match.start()
         open_braces = 0
 
