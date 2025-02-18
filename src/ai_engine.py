@@ -70,6 +70,8 @@ class AiEngine(object):
                     prompt=PromptAssembler.assemble_optimize_prompt(code_to_be_tested)
                 elif os.getenv("SCAN_MODE","COMMON_VUL")=="COMMON_PROJECT":
                     prompt=PromptAssembler.assemble_prompt_common(code_to_be_tested)
+                elif os.getenv("SCAN_MODE","COMMON_VUL")=="PURE_SCAN":
+                    prompt=PromptAssembler.assemble_prompt_pure(code_to_be_tested)
                 elif os.getenv("SCAN_MODE","COMMON_VUL")=="SPECIFIC_PROJECT":
                     # 构建提示来判断业务类型
                     business_type=task.recommendation
