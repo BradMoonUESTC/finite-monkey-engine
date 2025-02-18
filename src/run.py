@@ -7,12 +7,18 @@ from rich.markdown import CodeBlock, Markdown
 from rich.syntax import Syntax
 from rich.text import Text
 import logging
-
 from pydantic_ai import Agent
 from pydantic_ai.models import KnownModelName
 from pydantic_ai.models.openai import OpenAIModel
-
 from nodes_config import nodes_config
+
+from openai import AsyncOpenAI
+import asyncio
+
+# gets API Key from environment variable OPENAI_API_KEY
+client = AsyncOpenAI()
+
+
 
 logger = logging.getLogger(__name__)
 if not logger.hasHandlers():
@@ -23,11 +29,11 @@ if not logger.hasHandlers():
     logger.addHandler(handler)
     from dataclasses import dataclass
 
-from dao.task_mgr import ProjectTaskMgr
-from codebaseQA.rag_processor import RAGProcessor
+from dao.atask_mgr import AProjectTaskMgr
+from codebaseQA.arag_processor import ARAGProcessor
 from res_processor.res_processor import ResProcessor
-from project.project_audit import ProjectAudit
-from planning.planning_v2 import PlanningV2
+from project.aproject_audit import AProjectAudit
+from planning.aplanning_v2 import APlanningV2
 from ai_engine import AiEngine
 
 
@@ -80,6 +86,8 @@ class Context:
         #self.call_graph = CallGraph(root=self.path)
         logger.log(31,"Context: ProjectAudit")
         self.project_audit = ProjectAudit(config)
+        self.aproject_audit = AProjectAudit(config)
+        
         logger.log(31,"Contex: RAGProcesssor")
         self.rag_processor = RAGProcessor(config.id,audit=self.project_audit)
 
@@ -128,6 +136,12 @@ def prettier_code_blocks():
     Markdown.elements['fence'] = SimpleCodeBlock
 
 
+
+
+
+
+
+
 if __name__ == '__main__':
     config = nodes_config()
     config.model_dump()
@@ -139,6 +153,7 @@ if __name__ == '__main__':
     logger.log(31,"starting project load/parse")
     context.project_audit.parse(context.project.white_files, context.project.white_functions)
     logger.log(31,f"saving state to {context.statefile}")
+    
     context.planning.do_planning()
     context.ai_engine.do_scan()
     context.ai_engine.check_function_vul()
