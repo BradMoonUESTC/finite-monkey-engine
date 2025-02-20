@@ -125,6 +125,17 @@ class PromptAssembler:
         Blacklist query functions
         Actual restriction effects of the blacklist
         Please explain the principles behind each detail with specific references to the code.
+
+        请用JSON格式输出分析结果，包含以下字段：
+        {{
+            "总结": "总体风险评估结论",
+            "风险模式": ["具体的风险机制描述"],
+            "关键函数": ["相关函数名称及功能"],
+            "状态存储": "相关状态变量的存储结构",
+            "权限控制": "权限验证机制分析",
+            "代码证据": ["关键代码片段"],
+            "影响范围": "对用户的实际影响"
+        }}
         """
     @staticmethod
     def confiscate_prompt(code):
@@ -136,6 +147,16 @@ class PromptAssembler:
         2. Users cannot prevent or revoke this operation. 
         Please analyze the contract, explain the relevant risks by comparing the risky code, no mitigation suggestions needed.
         Please explain the principles behind each detail with specific references to the code.
+
+        请用JSON格式输出分析结果，包含以下字段：
+        {{
+            "总结": "没收风险总体结论",
+            "风险模式": ["识别到的风险模式"],
+            "关键函数": ["危险操作函数列表"],
+            "权限缺陷": "权限控制缺失点",
+            "代码证据": ["相关代码片段"],
+            "用户影响": "对终端用户的影响"
+        }}
         """
     @staticmethod
     def txorigin_prompt(code):
@@ -148,6 +169,16 @@ class PromptAssembler:
         The detailed principles and logic behind the tx.origin-based transfer implementation
         Any possible attack vectors or exploitation scenarios
         Please explain the principles behind each detail with specific references to the code.
+
+        请用JSON格式输出分析结果，包含以下字段：
+        {{
+            "总结": "tx.origin使用风险总结",
+            "风险模式": ["潜在风险类型"],
+            "关键函数": ["使用tx.origin的函数"],
+            "攻击场景": ["可能的攻击方式"],
+            "代码证据": ["相关代码片段"],
+            "影响范围": "受影响的功能模块"
+        }}
         """
     @staticmethod
     def fee_prompt(code):
@@ -168,6 +199,16 @@ class PromptAssembler:
         How the fees are actually deducted and processed during transactions
         Please explain each detail and principle with specific references to the contract code.
         Please explain the principles behind each detail with specific references to the code.
+
+        请用JSON格式输出分析结果，包含以下字段：
+        {{
+            "总结": "手续费机制风险总结",
+            "风险模式": ["手续费相关风险类型"],
+            "关键参数": ["手续费相关参数"],
+            "权限控制": "费率修改权限分析",
+            "代码证据": ["关键代码片段"],
+            "用户影响": "对交易的实际影响"
+        }}
         """
     @staticmethod
     def transfer_amount_prompt(code):
@@ -182,6 +223,16 @@ class PromptAssembler:
         Actual restriction effects of the transfer amount limit
         Please explain the principles behind each detail with specific references to the code.
         Please explain the principles behind each detail with specific references to the code.
+
+        请用JSON格式输出分析结果，包含以下字段：
+        {{
+            "总结": "转账限额风险总结",
+            "风险模式": ["限额机制类型"],
+            "关键函数": ["限额管理函数"],
+            "状态存储": "限额存储结构",
+            "代码证据": ["相关代码片段"],
+            "用户影响": "对转账操作的影响"
+        }}
         """
     @staticmethod
     def transfer_time_prompt(code):
@@ -201,7 +252,7 @@ class PromptAssembler:
         return f"""
         {code}
         Analyze the functionality of this token contract and determine whether it contains significant or hidden parameter reconfiguration mechanisms.
-        this mechanism can impact user balances and lead to accounting discrepancies between on-chain user balances and balances tracked by the exchange’s systems.
+        this mechanism can impact user balances and lead to accounting discrepancies between on-chain user balances and balances tracked by the exchange's systems.
         Please explain the parameter reconfiguration mechanism in detail with reference to the code, covering the following details:
 
         Storage structure of the parameter reconfiguration
@@ -210,6 +261,16 @@ class PromptAssembler:
         Actual restriction effects of the parameter reconfiguration
         Please explain the principles behind each detail with specific references to the code.
         Please explain the principles behind each detail with specific references to the code.
+
+        请用JSON格式输出分析结果，包含以下字段：
+        {{
+            "总结": "参数修改风险总结",
+            "风险模式": ["参数修改机制类型"],
+            "关键参数": ["可修改的关键参数"],
+            "权限控制": "修改权限分析",
+            "代码证据": ["相关代码片段"],
+            "系统影响": "对账务系统的影响"
+        }}
         """    
     @staticmethod
     def rebase_prompt(code):
@@ -238,6 +299,16 @@ class PromptAssembler:
         The potential impact on user balances and transactions
         Whether the rebase events are transparent or silent to users
         Please explain the principles behind each detail with specific references to the code.
+
+        请用JSON格式输出分析结果，包含以下字段：
+        {{
+            "总结": "Rebase机制风险总结",
+            "风险模式": ["rebase实现方式"],
+            "关键函数": ["rebase相关函数"],
+            "供应影响": "对代币供应量的影响",
+            "代码证据": ["相关代码片段"],
+            "用户影响": "对余额计算的影响"
+        }}
         """
     @staticmethod
     def upgradeable_prompt(code):
@@ -268,6 +339,16 @@ class PromptAssembler:
         - Check for uninitialized implementation contracts
         Please point out specific code implementing these upgrade mechanisms and explain how contract owners can modify contract functionality through these mechanisms.        
         Please explain the principles behind each detail with specific references to the code.
+
+        请用JSON格式输出分析结果，包含以下字段：
+        {{
+            "总结": "可升级性风险总结",
+            "风险模式": ["升级机制类型"],
+            "关键组件": ["升级相关组件"],
+            "权限缺陷": "权限控制问题",
+            "代码证据": ["相关代码片段"],
+            "系统影响": "可升级性带来的影响"
+        }}
         """
     @staticmethod
     def access_control_prompt(code):
@@ -302,6 +383,16 @@ class PromptAssembler:
           * Emergency controls
         Please point out specific unprotected code and explain their potential impact if exploited by malicious actors.
         Please explain the principles behind each detail with specific references to the code.
+
+        请用JSON格式输出分析结果，包含以下字段：
+        {{
+            "总结": "访问控制风险总结",
+            "风险模式": ["权限缺失类型"],
+            "关键函数": ["未受保护函数"],
+            "权限缺陷": "访问控制缺陷",
+            "代码证据": ["相关代码片段"],
+            "系统影响": "可能造成的系统影响"
+        }}
         """
     @staticmethod
     def unintend_confiscate_prompt(code):
@@ -338,6 +429,16 @@ class PromptAssembler:
         Please identify specific scenarios where tokens might be unintentionally confiscated and explain how these conditions could affect users.        
         
         Please explain the principles behind each detail with specific references to the code.
+
+        请用JSON格式输出分析结果，包含以下字段：
+        {{
+            "总结": "意外没收风险总结",
+            "风险模式": ["意外没收场景"],
+            "关键条件": ["触发条件"],
+            "状态依赖": "状态依赖分析",
+            "代码证据": ["相关代码片段"],
+            "用户影响": "对资产安全的影响"
+        }}
         """
     
     @staticmethod
@@ -384,6 +485,16 @@ class PromptAssembler:
 
         Please highlight specific external calls that could put user funds at risk and explain potential attack scenarios.
         Please explain the principles behind each detail with specific references to the code.
+
+        请用JSON格式输出分析结果，包含以下字段：
+        {{
+            "总结": "外部调用风险总结",
+            "风险模式": ["危险调用模式"],
+            "调用位置": ["风险调用点"],
+            "安全漏洞": ["安全漏洞类型"],
+            "代码证据": ["相关代码片段"],
+            "攻击影响": "可能造成的攻击影响"
+        }}
         """
     
     def signature_replay_prompt(code):
@@ -430,6 +541,16 @@ Please analyze if this contract has Signature Replay Risk (Off-chain Signature) 
 
         Please identify specific signature-related vulnerabilities and explain potential replay attack scenarios.
         Please explain the principles behind each detail with specific references to the code.
+
+        请用JSON格式输出分析结果，包含以下字段：
+        {{
+            "总结": "签名重放风险总结",
+            "风险模式": ["签名缺陷类型"],
+            "关键参数": ["缺失的安全参数"],
+            "验证缺陷": "签名验证问题",
+            "代码证据": ["相关代码片段"],
+            "攻击场景": ["可能的攻击方式"]
+        }}
         """
     
 
@@ -474,6 +595,16 @@ Please analyze if this contract has Signature Replay Risk (Off-chain Signature) 
 
         Please highlight specific instances where events might mislead external applications or users about the contract's true state and explain the potential impact on tracking systems.
         Please explain the principles behind each detail with specific references to the code.
+
+        请用JSON格式输出分析结果，包含以下字段：
+        {{
+            "总结": "事件欺骗风险总结",
+            "风险模式": ["事件不一致类型"],
+            "关键事件": ["风险事件名称"],
+            "状态差异": "事件与状态差异",
+            "代码证据": ["相关代码片段"],
+            "监控影响": "对监控系统的影响"
+        }}
         """
     
     @staticmethod
@@ -524,6 +655,16 @@ Please analyze if this contract has Non-standard ERC-20 implementation issues, f
 
         Please highlight specific deviations from the ERC-20 standard and explain potential integration or compatibility issues.
         Please explain the principles behind each detail with specific references to the code.
+
+        请用JSON格式输出分析结果，包含以下字段：
+        {{
+            "总结": "ERC20标准兼容性总结",
+            "标准偏离": ["不符合标准的表现"],
+            "关键差异": ["主要差异点"],
+            "兼容问题": ["兼容性问题"],
+            "代码证据": ["相关代码片段"],
+            "系统影响": "对交易所的影响"
+        }}
         """
     
     @staticmethod
@@ -576,6 +717,16 @@ Please analyze if this token contract has Pause mechanism risks, focusing on:
 
         Please highlight specific pause mechanisms that could affect token holders and explain potential scenarios where pausing could impact users.
         Please explain the principles behind each detail with specific references to the code.
+
+        请用JSON格式输出分析结果，包含以下字段：
+        {{
+            "总结": "暂停机制风险总结",
+            "风险模式": ["暂停控制类型"],
+            "关键函数": ["暂停相关函数"],
+            "权限分析": "暂停权限控制",
+            "代码证据": ["相关代码片段"],
+            "用户影响": "对交易可用性的影响"
+        }}
         """
     
     @staticmethod
@@ -632,6 +783,16 @@ Please analyze if this token contract has Superuser risks, focusing on:
 
 Please highlight specific privileged functions that could affect token holders and explain potential centralization risks.
         Please explain the principles behind each detail with specific references to the code.
+
+        请用JSON格式输出分析结果，包含以下字段：
+        {{
+            "总结": "超级权限风险总结",
+            "风险模式": ["特权滥用类型"],
+            "关键权限": ["特权函数列表"],
+            "控制缺陷": "权限控制问题",
+            "代码证据": ["相关代码片段"],
+            "系统影响": "对去中心化的影响"
+        }}
         """
     
     @staticmethod
@@ -693,6 +854,16 @@ Please analyze if this token contract has Minting risks, focusing on:
 
 Please highlight specific minting capabilities that could affect token value and explain potential inflation risks.
         Please explain the principles behind each detail with specific references to the code.
+
+        请用JSON格式输出分析结果，包含以下字段：
+        {{
+            "总结": "铸币权限风险总结",
+            "风险模式": ["铸币控制类型"],
+            "关键函数": ["铸币相关函数"],
+            "供应影响": "对代币供应的影响",
+            "代码证据": ["相关代码片段"],
+            "经济影响": "对代币经济的影响"
+        }}
         """
     @staticmethod
     def ownership_transfer_prompt(code):
@@ -743,6 +914,16 @@ Please analyze if this token contract has Ownership Transfer risks in the scope 
 Please highlight specific ownership transfer mechanisms and explain potential risks from malicious ownership.
         Please explain the principles behind each detail with specific references to the code.
         Remember, this ownership risk is in the scope of user, not for the owner.
+
+        请用JSON格式输出分析结果，包含以下字段：
+        {{
+            "总结": "所有权转移风险总结",
+            "风险模式": ["转移机制类型"],
+            "关键流程": ["转移相关函数"],
+            "权限缺陷": "转移控制问题",
+            "代码证据": ["相关代码片段"],
+            "用户影响": "对用户资产的影响"
+        }}
         """
     
     @staticmethod
@@ -812,4 +993,14 @@ Please analyze if this contract has Assembly usage risks, focusing on:
 
 Please highlight specific assembly usage patterns and explain potential risks from low-level operations.
         Please explain the principles behind each detail with specific references to the code.
+
+        请用JSON格式输出分析结果，包含以下字段：
+        {{
+            "总结": "汇编代码风险总结",
+            "风险模式": ["汇编使用类型"],
+            "关键代码": ["汇编代码位置"],
+            "安全缺陷": "潜在安全问题",
+            "代码证据": ["相关代码片段"],
+            "维护影响": "对代码可维护性的影响"
+        }}
         """
