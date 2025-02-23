@@ -3,6 +3,8 @@ import os
 import numpy as np
 import requests
 from openai import OpenAI
+from pydantic_ai import Agent 
+from pydantic_ai.models import  *
 
 def azure_openai(prompt):
     # Azure OpenAI配置
@@ -112,7 +114,7 @@ def ask_openai_for_json(prompt):
         "Authorization": f"Bearer {api_key}"
     }
     data = {
-        "model": os.environ.get('OPENAI_MODEL'),
+        "model": os.environ.get('OPENAI_MODEL', 'hf.co/unsloth/DeepSeek-R1-Distill-Qwen-32B-GGUF:Q8_0'),
         "response_format": { "type": "json_object" },
         "messages": [
             {
@@ -125,7 +127,7 @@ def ask_openai_for_json(prompt):
             }
         ]
     }
-    response = requests.post(f'https://{api_base}/v1/chat/completions', headers=headers, json=data)
+    response = requests.post(f'{api_base}/v1/chat/completions', headers=headers, json=data)
     if response.status_code != 200:
         print(response.text)
     response_josn = response.json()
@@ -262,7 +264,7 @@ def common_get_embedding(text: str):
         raise ValueError("OPENAI_API_KEY environment variable is not set")
 
     api_base = os.getenv('OPENAI_API_BASE', 'api.openai.com')
-    model = os.getenv("PRE_TRAIN_MODEL", "text-embedding-3-large")
+    model = os.getenv("EMBEDDING_MODEL", "text-embedding-3-large")
     
     headers = {
         "Authorization": f"Bearer {api_key}",

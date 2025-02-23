@@ -1,11 +1,9 @@
 # Generated from Solidity.g4 by ANTLR 4.13.1
-from antlr4 import *
+from antlr4 import DFA, ATNDeserializer, LexerATNSimulator, PredictionContextCache
+from antlr4.Lexer import Lexer
 from io import StringIO
 import sys
-if sys.version_info[1] > 5:
-    from typing import TextIO
-else:
-    from typing.io import TextIO
+from typing import TextIO
 
 
 def serializedATN():

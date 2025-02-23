@@ -90,10 +90,8 @@ class CallGraph:
         self.root = root
         self.files = {}
         self.call_data = {}
-
         self.__parse_all_files()
         self.__run_jar()
-
         self.__clean()
     
     def get_rel_path(self, path:str)->str:
@@ -137,6 +135,7 @@ class CallGraph:
                         continue
                     self.files[os.path.abspath(os.path.join(root, file))] = parseString(open(os.path.join(root, file), "r", encoding="utf-8", errors="ignore").read())
 
+    ### TODO!! asyncio.create_subprocess_exec
     def __run_jar(self):
         dir_name = os.path.abspath(os.path.dirname(__file__))
         jar_file = os.path.join(dir_name, "jars/SolidityCallgraph-1.0-SNAPSHOT-standalone.jar")

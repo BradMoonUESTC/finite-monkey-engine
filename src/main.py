@@ -1,5 +1,4 @@
 import argparse
-import ast
 import os
 import time
 import audit_config
@@ -7,18 +6,14 @@ from ai_engine import *
 from project import ProjectAudit
 from library.dataset_utils import load_dataset, Project
 from planning import PlanningV2
-from prompts import prompts
 from sqlalchemy import create_engine
 from dao import CacheManager, ProjectTaskMgr
-import os
 import pandas as pd
 from openpyxl import Workbook,load_workbook
 from openpyxl.utils.dataframe import dataframe_to_rows
 from codebaseQA.rag_processor import RAGProcessor
 from res_processor.res_processor import ResProcessor
 
-import dotenv
-dotenv.load_dotenv()
 
 def scan_project(project, db_engine):
     # 1. parsing projects  
@@ -136,19 +131,19 @@ if __name__ == '__main__':
     if switch_production_or_test == 'test':
         start_time=time.time()
         db_url_from = os.environ.get("DATABASE_URL")
-        engine = create_engine(db_url_from)
+        engine = create_engine(db_url_from,  echo=True)
         
         dataset_base = "./src/dataset/agent-v1-c4"
         projects = load_dataset(dataset_base)
 
-        project_id = 'zaros'
+        project_id = 'gamma2'
         project_path = ''
         project = Project(project_id, projects[project_id])
         
         cmd = 'detect_vul'
         if cmd == 'detect_vul':
             lancedb,lance_table_name,project_audit=scan_project(project, engine) # scan
-            if os.getenv("SCAN_MODE","SPECIFIC_PROJECT")=="SPECIFIC_PROJECT" or os.getenv("SCAN_MODE","SPECIFIC_PROJECT")=="COMMON_PROJECT":
+            if os.getenv("SCAN_MODE","SPECIFIC_PROJECT") in ["SPECIFIC_PROJECT","COMMON_PROJECT","PURE_SCAN"]:
                 check_function_vul(engine,lancedb,lance_table_name,project_audit) # confirm
 
 
@@ -186,7 +181,7 @@ if __name__ == '__main__':
 
         # Database setup
         db_url_from = os.environ.get("DATABASE_URL")
-        engine = create_engine(db_url_from)
+        engine = create_engine(db_url_from, echo=True)
 
         # Load projects
         projects = load_dataset(dataset_base, args.id, folder_name)
@@ -199,7 +194,7 @@ if __name__ == '__main__':
         #     check_function_vul(engine)  # confirm
         # elif args.cmd == 'all':
         lancedb=scan_project(project, engine)  # scan
-        check_function_vul(engine,lancedb)  # confirm
+        check_function_vul(engine,lancedb, lance_table_name, project_audit)  # confirm
 
         end_time = time.time()
         print("Total time:", end_time -start_time)

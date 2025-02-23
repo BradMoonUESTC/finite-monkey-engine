@@ -1,20 +1,103 @@
-from typing import Any, List, Optional, Tuple, Union
+from typing import Any, List, Optional, Union, cast
 from typing_extensions import override
+from library.sgp.ast_node_types import (
+    UNARY_OP_VALUES,
+    InheritanceSpecifier,
+    NameValueExpression,
+    BINARY_OP_VALUES,
+    Conditional,
+    NameValueList,
+    ArrayTypeName,
+    AssemblyBlock,
+    AssemblyCase,
+    AssemblyCall,
+    AssemblyFunctionDefinition,
+    AssemblyIf,
+    AssemblyFor,
+    AssemblyAssignment,
+    AssemblyItem,
+    AssemblyLocalDefinition,
+    AssemblyMemberAccess,
+    AssemblyStackAssignment,
+    AssemblySwitch,
+    BaseASTNode,
+    Block,
+    BinaryOperation,
+    BooleanLiteral,
+    Break,
+    BreakStatement,
+    CatchClause,
+    Continue,
+    ContinueStatement,
+    ContractDefinition,
+    CustomErrorDefinition,
+    DecimalNumber,
+    DoWhileStatement,
+    ElementaryTypeName,
+    EmitStatement,
+    EnumDefinition,
+    EnumValue,
+    EventDefinition,
+    Expression,
+    ExpressionStatement,
+    FileLevelConstant,
+    ForStatement,
+    FunctionCall,
+    FunctionDefinition,
+    FunctionTypeName,
+    HexLiteral,
+    HexNumber,
+    Identifier,
+    IfStatement,
+    ImportDirective,
+    IndexAccess,
+    IndexRangeAccess,
+    LabelDefinition,
+    Location,
+    Mapping,
+    MemberAccess,
+    ModifierDefinition,
+    ModifierInvocation,
+    NewExpression,
+    NumberLiteral,
+    PrimaryExpression,
+    PragmaDirective,
+    Range,
+    ReturnStatement,
+    RevertStatement,
+    SimpleStatement,
+    SourceUnit,
+    StateVariableDeclaration,
+    StateVariableDeclarationVariable,
+    Statement,
+    StringLiteral,
+    StructDefinition,
+    ThrowStatement,
+    TryStatement,
+    TupleExpression,
+    TypeDefinition,
+    TypeName,
+    UnaryOperation,
+    UncheckedStatement,
+    UserDefinedTypeName,
+    UsingForDeclaration,
+    VariableDeclaration,
+    VariableDeclarationStatement,
+    WhileStatement,
+    InlineAssemblyStatement,  # added inline assembly type
+    AssemblyExpression,       # added assembly expression type
+)
 
 from antlr4.tree.Tree import ErrorNode
 from antlr4 import ParserRuleContext
 from antlr4.tree.Tree import ParseTree,ParseTreeVisitor
 from antlr4.error.Errors import RecognitionException
 
-from sgp.utilities.contract_extractor import extract_contract_with_name
+from library.sgp.utilities.contract_extractor import extract_contract_with_name
 
 
-from .parser.SolidityParser import SolidityParser as SP
-from .parser.SolidityVisitor import SolidityVisitor
-
-
-from .ast_node_types import *
-
+from library.sgp.parser.SolidityParser import SolidityParser as SP
+from library.sgp.parser.SolidityVisitor import SolidityVisitor
 
 class SGPVisitorOptions:
     def __init__(
@@ -43,7 +126,7 @@ class SGPVisitorOptions:
 class SGPVisitor(SolidityVisitor):
     def __init__(self, options: SGPVisitorOptions):
         super().__init__()
-        self._current_contract = None
+        self._current_contract: Optional[str] = None
         self._options = options
 
     @override
@@ -169,7 +252,7 @@ class SGPVisitor(SolidityVisitor):
         identifierCtx = ctx.identifier()
 
         node = VariableDeclaration(
-            type_name=self.visitTypeName(ctx.typeName()),
+            type_name=cast(TypeName, self.visitTypeName(ctx.typeName())),
             name=self._to_text(identifierCtx),
             identifier=self.visitIdentifier(identifierCtx),
             storage_location=storageLocation,
@@ -199,11 +282,11 @@ class SGPVisitor(SolidityVisitor):
         ctxExpression = ctx.expression()
         if ctxExpression:
             initialValue = self.visitExpression(ctxExpression)
-
-        node = VariableDeclarationStatement(
-            variables=variables,
+            node = VariableDeclarationStatement(
+            variables=[cast(Optional[BaseASTNode], v) for v in variables],
             initial_value=initialValue,
-        )
+            )
+        
 
         return self._add_meta(node, ctx)
 
@@ -213,7 +296,7 @@ class SGPVisitor(SolidityVisitor):
     def visitSimpleStatement(
         self, ctx: SP.SimpleStatementContext
     ) -> SimpleStatement:
-        if ctx.children == None:
+        if ctx.children is None:
             return self.visitErrorNode(ctx.start)
         return self.visit(ctx.getChild(0))  # Assuming the child type is SimpleStatement
 
@@ -223,7 +306,7 @@ class SGPVisitor(SolidityVisitor):
         parameters = [
             self._add_meta(
                 VariableDeclaration(
-                    type_name=self.visitTypeName(paramCtx.typeName()),
+                    type_name=cast(TypeName, self.visitTypeName(paramCtx.typeName())),
                     name=self._to_text(paramCtx.identifier())
                     if paramCtx.identifier()
                     else None,
@@ -472,7 +555,7 @@ class SGPVisitor(SolidityVisitor):
             # using Lib for ...
             node = UsingForDeclaration(
                 is_global=isGlobal,
-                type_name=typeName,
+                type_name=cast(TypeName, typeName),
                 library_name=self._to_text(userDefinedTypeNameCtx),
                 functions=[],
                 operators=[],
@@ -492,7 +575,7 @@ class SGPVisitor(SolidityVisitor):
 
             node = UsingForDeclaration(
                 is_global=isGlobal,
-                type_name=typeName,
+                type_name=cast(TypeName, typeName),
                 library_name=None,
                 functions=functions,
                 operators=operators,
@@ -608,7 +691,7 @@ class SGPVisitor(SolidityVisitor):
         return self._add_meta(node, ctx)
 
     def visitThrowStatement(self, ctx: SP.ThrowStatementContext) -> ThrowStatement:
-        node = ThrowStatement(type="ThrowStatement")
+        node = ThrowStatement()
 
         return self._add_meta(node, ctx)
 
@@ -916,9 +999,9 @@ class SGPVisitor(SolidityVisitor):
             ):
                 node = TupleExpression(
                     components=[
-                        self.visitExpression(
+                        cast(BaseASTNode, self.visitExpression(
                             ctx.getTypedRuleContext(SP.ExpressionContext, 0)
-                        )
+                        ))
                     ],
                     isArray=False,
                 )
@@ -1144,7 +1227,7 @@ class SGPVisitor(SolidityVisitor):
                 fragments_info.append({"value": value, "is_unicode": is_unicode})
 
             parts = [x["value"] for x in fragments_info]
-            node = StringLiteral(value="".join(parts), parts=parts, is_unicode=[x["is_unicode"] for x in fragments_info])
+            node = StringLiteral(value="".join(str(p) for p in parts), parts=parts, is_unicode=[x["is_unicode"] for x in fragments_info])
             return self._add_meta(node, ctx)
 
         if ctx.numberLiteral():
@@ -1157,7 +1240,7 @@ class SGPVisitor(SolidityVisitor):
         if ctx.typeName():
             return self.visitTypeName(ctx.typeName())
 
-        if ctx.children == None:
+        if ctx.children is None:
             return self.visitErrorNode(ctx.start)
 
         return self.visit(ctx.getChild(0))
@@ -1594,7 +1677,7 @@ class SGPVisitor(SolidityVisitor):
 
         return self._add_meta(node, ctx)
 
-    def _to_text(self, ctx: ParserRuleContext or ParseTree) -> str:
+    def _to_text(self, ctx: Union[ParserRuleContext | ParseTree]) -> str:
         text = ctx.getText()
         if text is None:
             raise ValueError("Assertion error: text should never be undefined")
@@ -1626,21 +1709,20 @@ class SGPVisitor(SolidityVisitor):
         )
 
         return source_location
+    def _range(self, ctx) -> Range:
+        start_offset = ctx.start.start
+        end_offset = ctx.stop.stop if ctx.stop else ctx.start.stop
+        return Range(start=start_offset, end=end_offset)
 
-    def _range(self, ctx) -> Tuple[int, int]:
-        return Range(ctx.start.start, ctx.stop.stop if ctx.stop else ctx.start.stop)
-
-    def _add_meta(
-        self, node: Union[BaseASTNode, NameValueList], ctx
-    ) -> Union[BaseASTNode, NameValueList]:
+    from typing import TypeVar
+    T = TypeVar("T", bound=BaseASTNode)
+    
+    def _add_meta(self, node: T, ctx) -> T:
         # node_with_meta = {"type": node.type}
-
         if self._options.loc:
             node.add_loc(self._loc(ctx))
-
         if self._options.range:
             node.add_range(self._range(ctx))
-
         return node
 
     def _map_commas_to_nulls(
@@ -1649,7 +1731,7 @@ class SGPVisitor(SolidityVisitor):
         if len(children) == 0:
             return []
 
-        values = []
+        values: list[Optional[ParseTree]] = []
         comma = True
 
         for el in children:

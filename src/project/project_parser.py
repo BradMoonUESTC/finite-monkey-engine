@@ -1,12 +1,13 @@
-from library.sgp.sgp_parser import get_antlr_parsing
 from library.parsing.callgraph import CallGraph
 import os
 import re
-
 from library.sgp.utilities.contract_extractor import extract_state_variables_from_code
 from .project_settings import FILE_PARTIAL_WHITE_LIST, PATH_PARTIAL_WHITE_LIST, PATH_WHITE_LIST, OPENZEPPELIN_CONTRACTS,OPENZEPPELIN_FUNCTIONS
+from library.sgp.sgp_parser import get_antlr_parsing
+from dataclasses import *
+from box import Box
 
-class Function(dict):
+class Function(Box):
     def __init__(self, file, contract, func):
         self.file = file
         self.contract = contract
@@ -156,7 +157,6 @@ class BaseProjectFilter(object):
 
 
 def parse_project(project_path, project_filter = None):
-
     if project_filter is None:
         project_filter = BaseProjectFilter([], [])
 
@@ -184,9 +184,19 @@ def parse_project(project_path, project_filter = None):
     # fix func name 
     fs = []
     for func in functions:
-        name = func['name'][8:] # remove special_前缀，具体为啥我也忘了，似乎是为了考虑特定的function name
+        if func['name'][8:] != "tor":
+            name = func['name'][8:] # remove SPECIAL_ Prefix,I forgot the specific reason, it seems to be to consider a specificfunction name
+        else:
+            name = "constructor"
         func['name'] = "%s.%s" % (func['contract_name'], name)
         fs.append(func)
+        
+        
+        
+    # for func in functions:
+    #     name = func['name'][8:] # remove special_前缀，具体为啥我也忘了，似乎是为了考虑特定的function name
+    #     func['name'] = "%s.%s" % (func['contract_name'], name)
+    #     fs.append(func)
 
     fs_filtered = fs[:]
     # 2. filter contract 
