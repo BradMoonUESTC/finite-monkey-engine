@@ -4,7 +4,7 @@ from os import path
 import asyncio
 from nodes_config import nodes_config
 from library.parsing.callgraph import CallGraph
-from aproject_parser import aparse_project, ABaseProjectFilter
+from .aproject_parser import parse_project_async,ABaseProjectFilter
 import re
 from library.sgp.utilities.contract_extractor import extract_state_variables_from_code, extract_state_variables_from_code_move
 
@@ -116,7 +116,7 @@ class AProjectAudit(object):
 
     async def parse(self, white_files: List[str], white_functions: List[str]) -> None:
         parser_filter = ABaseProjectFilter(white_files, white_functions)
-        functions, functions_to_check = await parse_project(self.project_path, parser_filter)
+        functions, functions_to_check = await parse_project_async(self.project_path, parser_filter)
         self.functions = functions
         self.functions_to_check = functions_to_check
         

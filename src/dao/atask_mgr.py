@@ -1,22 +1,33 @@
+import asyncio
 import csv
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.ext.asyncio.engine import AsyncEngine
-from sqlalchemy.orm import sessionmaker, declarative_base
+from sqlalchemy.orm import declarative_base
 from sqlalchemy.future import select
 from sqlalchemy.exc import IntegrityError
 from tqdm.asyncio import tqdm as tqdm_asyncio
+from sqlalchemy.ext.asyncio import AsyncAttrs
+from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.ext.asyncio import async_sessionmaker
 from dao.aentity import AProject_Task
-Base = declarative_base()
-
+# Base = declarative_base()
+class Base(AsyncAttrs, DeclarativeBase):
+    pass
 class AProjectTaskMgr:
     def __init__(self, project_id, engine_url):
         self.project_id = project_id
         # Create async engine
-        self.engine: AsyncEngine = create_async_engine(engine_url)
+        self.engine: AsyncEngine = create_async_engine("postgresql+asyncpg://postgres:1234@127.0.0.1:5432/postgres")
         # Ensure table is created
-        Base.metadata.create_all(self.engine)
+        #Base.metadata.create_all(self.engine)
+        async def init_models():
+            async with self.engine.begin() as conn:
+                await conn.run_sync(Base.metadata.drop_all)
+                await conn.run_sync(Base.metadata.create_all)
+
+        init_models()
         # Configure sessionmaker to use AsyncSession
-        self.Session = sessionmaker(bind=self.engine, class_=AsyncSession)
+        self.Session = async_sessionmaker(bind=self.engine, class_=AsyncSession)
 
     async def _operate_in_session(self, func, *args, **kwargs):
         """Generic function to handle operations within an async session."""

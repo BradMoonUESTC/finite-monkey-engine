@@ -12,23 +12,18 @@ dependencies = [
     "asyncpg>=0.30.0",
     "certifi>=2024.8.30",
     "charset-normalizer>=3.4.0",
-    "colorama>=0.4.6",
-    "dependency-injector>=4.45.0",
     "devtools>=0.9.0",
-    "et-xmlfile>=1.1.0",
     "fastapi>=0.115.8",
     "future>=1.0.0",
-    "idna>=3.10",
-    "ipython>=8.32.0",
     "jiter>=0.8.2",
     "joblib>=1.4.2",
     "lancedb>=0.19.0",
     "logging>=0.4.9.6",
+    "loguru>=0.7.3",
     "networkx>=3.4.2",
     "numpy>=1.24.4",
     "ollama>=0.4.7",
     "openai>=1.63.0",
-    "openpyxl>=3.1.5",
     "pandas>=1.24.4",
     "psycopg2-binary>=2.9.9",
     "pydantic>=2.11.0a2",
@@ -37,25 +32,30 @@ dependencies = [
     "pydantic-settings>=2.7.1",
     "pydot>=3.0.4",
     "pylance>=0.23.0",
-    "pyperclip>=1.9.0",
     "python-box>=7.3.2",
     "python-dateutil==2.8.2",
-    "python-dotenv>=1.0.1",
     "pytz>=2024.2",
     "requests>=2.32.3",
     "rich>=13.9.4",
     "scipy>=1.10.1",
-    "simplejson>=3.19.3",
     "six>=1.16.0",
-    "sqlalchemy>=2.0.38",
-    "sqlalchemy-orm>=1.2.10",
+    "sqlalchemy[async,asyncio,asyncnpg,asyncpg,asynnpg,asynpg]>=2.0.38",
     "threadpoolctl>=3.5.0",
-    "tqdm>=4.66.5",
     "tree-sitter>=0.24.0",
     "tree-sitter-solidity>=1.2.11",
     "typing_extensions>=4.12.2",
-    "tzdata>=2024.2",
     "urllib3>=2.2.3",
+    "httpx[http2]>=0.28.1",
+    "nest-asyncio>=1.6.0",
+    "prompt-toolkit>=3.0.50",
+    "pygments>=2.19.1",
+    "asyncio[subprocess]>=3.4.3",
+    "textual-dev>=1.7.0",
+    "textual[demo,dev]>=2.1.0",
+    "textual-web>=0.4.2",
+    "ipython>=8.32.0",
+    "openpyxl>=3.1.5",
+    "typing[io]>=3.10.0.0",
 ]
 
 [project.urls]
@@ -78,6 +78,11 @@ build-backend = "setuptools.build_meta"
 [tool.finite-monkey-engine]
 AZURE_API_VERSION = "test"
 COMMON_PROJECT = "pyproject"
+GEMINI_API_KEY = "gemini_key"
+AZURE_OR_OPENAI = "OPENAI"
+id="12123"
+output="/tmp/121"
+base_dir="/export/md0/contracts-eb12d93c17cf93b27cba7b3a49ebdc9536d7d894/"
 
 [tool.hatch.build.targets.wheel]
 packages = ["finite_monkey_engine"]

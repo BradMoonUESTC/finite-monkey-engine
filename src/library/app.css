@@ -1,0 +1,45 @@
+/* app.css */
+
+/* Style for the input widget */
+#text_input {
+    height: 3;
+    padding: 1;
+    border: tall #00FF00;
+    background: #1E1E1E;
+    color: white;
+}
+
+/* Style for the dual language view container */
+#dual_view {
+    margin-top: 1;
+    margin-bottom: 1;
+}
+
+/* Style for the detail view widget */
+#detail_view {
+    margin-top: 1;
+    margin-bottom: 1;
+    background: #222222;
+    border: round #888888;
+    padding: 1;
+    color: #CCCCCC;
+}
+
+/* Header and Footer styling */
+Header {
+    background: #333333;
+    color: #FFFFFF;
+    padding: 1;
+}
+
+Footer {
+    background: #333333;
+    color: #FFFFFF;
+    padding: 1;
+}
+
+/* Optional: Style for panels within the dual view */
+Panel {
+    border: round #555555;
+    padding: 1;
+}

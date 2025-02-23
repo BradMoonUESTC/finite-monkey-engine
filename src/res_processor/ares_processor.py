@@ -3,9 +3,8 @@ from tqdm import tqdm
 import json
 from openai_api.openai import ask_claude, common_ask_for_json
 import asyncio
-import aiohttp
 
-class ResProcessor:
+class AResProcessor:
     def __init__(self, df):
         self.df = df
 

@@ -1,9 +1,15 @@
 import random
+from sqlalchemy import Column, Integer, String, select
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.ext.asyncio import AsyncAttrs
 from sqlalchemy.orm import sessionmaker, declarative_base
 from library.utils import str_hash
+from sqlalchemy.ext.asyncio import AsyncAttrs
+from sqlalchemy.orm import DeclarativeBase
+from nodes_config import Settings
 
-Base = declarative_base()
+class Base (AsyncAttrs,DeclarativeBase):
+    pass
 
 class ACacheEntry(Base):
     __tablename__ = 'prompt_cache2'
@@ -130,7 +136,7 @@ class AProject_Task(Base):
         return None if result == '' else result
 
 # Create an async engine and sessionmaker
-DATABASE_URL = "postgresql+asyncpg://user:password@localhost/dbname"
+DATABASE_URL = "postgresql+asyncpg://postgres:1234@127.0.0.1:5432/postgres"
 engine = create_async_engine(DATABASE_URL, echo=True)
 AsyncSessionLocal = sessionmaker(
     bind=engine,
@@ -149,7 +155,7 @@ async def get_aproject_task_by_id(task_id: int):
         return result.scalars().first()
 
 # Example of inserting a new project task
-async def create_aproject_task(project_id, name, content, keyword, business_type, sub_business_type, function_type, rule):
+async def create_aproject_task(project_id, name, content, keyword, business_type, sub_business_type, function_type, rule) -> AProject_Task:
     async with AsyncSessionLocal() as session:
         new_task = AProject_Task(
             project_id=project_id,

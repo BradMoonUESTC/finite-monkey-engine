@@ -1,11 +1,9 @@
 # Generated from .\SolidityLexer.g4 by ANTLR 4.12.0
-from antlr4 import *
+# Removed wildcard import; explicit imports follow
 from io import StringIO
 import sys
-if sys.version_info[1] > 5:
-    from typing import TextIO
-else:
-    from typing.io import TextIO
+from antlr4 import Lexer, LexerATNSimulator, ATNDeserializer, DFA, PredictionContextCache
+from typing import TextIO
 
 
 def serializedATN():

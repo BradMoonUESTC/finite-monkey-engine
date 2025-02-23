@@ -11,6 +11,16 @@ from openai_api.openai import common_get_embedding
 from project.aproject_audit import AProjectAudit
 
 class ARAGProcessor:
+    
+    async def acheck_data_count(self, expected_count: int) -> bool:
+        """检查表中的数据数量是否匹配"""
+        try:
+            table = await self.db.open_table(self.table_name)
+            actual_count = len(await table.to_lance())
+            return actual_count == expected_count
+        except Exception:
+            return False
+
     def __init__(self, id: str = None, audit: AProjectAudit = None):
         self.db_path: str = os.path.join(os.getcwd(), f"Alancedb{id}")
         self.audit:AProjectAudit = audit
@@ -33,27 +43,11 @@ class ARAGProcessor:
             pa.field("state_mutability", pa.string())
         ])
 
-        # 检查表是否存在且数据量匹配
-        if self.table_exists() and self.check_data_count(len(functions_to_check)):
-            print(f"Table {self.table_name} already exists with correct data count. Skipping processing.")
-            return
-
-        asyncio.run(self._create_database(functions_to_check))
-
     async def table_exists(self) -> bool:
         """检查表是否存在"""
         try:
             await self.db.open_table(self.table_name)
             return True
-        except Exception:
-            return False
-
-    async def check_data_count(self, expected_count: int) -> bool:
-        """检查表中的数据数量是否匹配"""
-        try:
-            table = await self.db.open_table(self.table_name)
-            actual_count = len(await table.to_lance())
-            return actual_count == expected_count
         except Exception:
             return False
 

@@ -1,556 +1,329 @@
 import asyncio
-import os
 import json
-import re
-from pydantic_ai import Agent
-from tqdm import tqdm
-import random
-from dao.aentity import AProject_Task
+import os
+from typing import AsyncGenerator, Callable, Any
+
 from dao.atask_mgr import AProjectTaskMgr
-from planning.aplanning_v2 import ATaskManager
 
-# from pydantic_ai.agent import Agent
-# from pydantic_ai.models.gemini import GeminiModel
-from pydantic_ai.models.openai import OpenAIModel
+# Assume AProjectTaskMgr and other dependencies are imported
 
-from src.ai_engine import ModelSettings
-# from pydantic_ai.models.anthropic import AnthropicModel
-# #from pydantic_ai.models..cohere import Model
-# from pydantic_ai.models.function import FunctionModel
-# from pydantic_ai.models.groq import GroqModel
-# from pydantic_ai.models.mistral import MistralModel
-# from pydantic_ai.models.vertexai import VertexAIModel
+# class APlanningV2:
+#     def __init__(self, project, mgr:AProjectTaskMgr ):
+#         self.project = project
+#         self.taskmgr = AProjectTaskMgr
+#         self.scan_list_for_larget_context: list[Any] = []
 
-# class Project_Task:
-#     def __init__(self, **kwargs):
-#         for key, value in kwargs.items():
-#             setattr(self, key, value)
+#     async def do_planning(self) -> AsyncGenerator[Callable[[], Any], None]:
+#         """
+#         Asynchronously plan the business flows for each function.
+#         Instead of returning a final result, yield a lambda that, when invoked,
+#         returns a future (a coroutine) for each iteration of planning.
+#         This allows an external agent to evaluate each stage as a future.
+#         """
+#         # For example, fetch tasks from the DB.
+#         tasks = await self.taskmgr.get_task_list_by_id(self.project.project_id)
+#         if tasks:
+#             # If tasks already exist, we consider planning already done.
+#             return
 
-# class TaskManager:
-#     async def get_task_list_by_id(self, project_id):
-#         # Simulate fetching tasks from a database asynchronously
-#         await asyncio.sleep(0.1)
-#         return []
+#         # Filter functions (example logic).
+#         functions_to_check = [f for f in self.project.functions_to_check if "test" not in f['name']]
+#         self.project.functions_to_check = functions_to_check
 
-#     async def add_task_in_one(self, task):
-#         # Simulate adding a task to the database asynchronously
-#         await asyncio.sleep(0.1)
+#         # If business code switching is enabled, get all business flows.
+#         switch_business_code = eval(os.environ.get('SWITCH_BUSINESS_CODE', 'True'))
+#         if switch_business_code:
+#             all_business_flow, all_business_flow_line, all_business_flow_context = await self.get_all_business_flow(self.project.functions_to_check)
+#         else:
+#             all_business_flow = all_business_flow_line = all_business_flow_context = {}
 
-# class Project:
-#     def __init__(self, project_id, functions_to_check):
-#         self.project_id = project_id
-#         self.functions_to_check = functions_to_check
+#         # Iterate over each function to plan its business flow.
+#         for function in self.project.functions_to_check:
+#             name = function['name']
+#             contract_name = function['contract_name']
+#             # Log processing
+#             print(f"Processing function: {name}")
+
+#             # Use your existing search_business_flow to get the flow code.
+#             business_flow_code, line_info_list, other_contract_context = await self.search_business_flow(
+#                 all_business_flow, all_business_flow_line, all_business_flow_context,
+#                 name.split(".")[1], contract_name
+#             )
+#             # Build a prompt for type checking.
+#             type_check_prompt = (
+#                 "分析以下智能合约代码，判断它属于哪些业务类型。可能的类型包括:\n"
+#                 "chainlink, dao, inline assembly, lending, liquidation, liquidity manager, signature, "
+#                 "slippage, univ3, other\n"
+#                 "请以JSON格式返回结果，格式为: {\"business_types\": [\"type1\", \"type2\"]}\n\n"
+#                 "代码:\n{0}"
+#             )
+#             formatted_prompt = type_check_prompt.format(business_flow_code + "\n" + other_contract_context + "\n" + function['content'])
+            
+#             # Instead of directly calling a REST method to get the answer, yield a lambda
+#             # that returns a coroutine to be evaluated later by the caller.
+#             yield lambda: self.common_ask_for_json(formatted_prompt)
+
+#             # Optionally, you could also yield the current intermediate planning context.
+#             # For example:
+#             # yield lambda: asyncio.sleep(0, result={"function": name, "prompt": formatted_prompt})
+    
+#     async def common_ask_for_json(self, prompt: str) -> dict:
+#         """
+#         Simulate an asynchronous call to an LLM API that returns a JSON result.
+#         In your production code, this would be replaced with a pydantic-ai Agent call.
+#         """
+#         # Simulated delay
+#         await asyncio.sleep(0.5)
+#         # For demonstration, return a dummy JSON response.
+#         # In reality, your agent would process the prompt.
+#         dummy_response = {"business_types": ["example_type1", "example_type2"]}
+#         print(f"Processed prompt: {prompt[:60]}... -> {dummy_response}")
+#         return dummy_response
+
+#     # Placeholder methods for get_all_business_flow and search_business_flow
+#     async def get_all_business_flow(self, functions_to_check):
+#         # Simulated async processing.
+#         await asyncio.sleep(0.5)
+#         # Return dummy dictionaries.
+#         return {}, {}, {}
+
+#     async def search_business_flow(self, all_flow, all_flow_line, all_flow_context, function_name, contract_name):
+#         # Simulated async search.
+#         await asyncio.sleep(0.5)
+#         # Return dummy business flow code and context.
+#         return f"business flow code for {function_name}", [], f"context for {contract_name}"
+import asyncio
+import json
+import os
+import re
+from typing import AsyncGenerator, Callable, Any, List, Tuple
+
+# Simulated pydantic model for LLM responses (for illustration)
+from pydantic import BaseModel
+
+class TranslationResult(BaseModel):
+    english: str
+    chinese: str
+
+# Dummy implementations for demonstration.
+# In production, replace these with real pydantic‑ai Agent calls.
 
 class APlanningV2:
-    def __init__(self, project):
+    def __init__(self, project, tm):
         self.project = project
-        self.taskmgr = AProjectTaskMgr()
+        self.taskmgr = tm # Assume this is defined elsewhere
         self.scan_list_for_larget_context = []
 
-    async def get_all_business_flow(self, functions_to_check):
-        from library.sgp.utilities.contract_extractor import group_functions_by_contract
-        from library.sgp.utilities.contract_extractor import check_function_if_public_or_external
-        from library.sgp.utilities.contract_extractor import check_function_if_view_or_pure
-
-        grouped_functions = group_functions_by_contract(functions_to_check)
-        contexts = self.identify_contexts(functions_to_check)
-        # 遍历grouped_functions，按每个合约代码进行业务流抽取
-        all_business_flow = {}
-        all_business_flow_line={}
-        all_business_flow_context = {}
-        print("grouped contract count:",len(grouped_functions))
-        
-        for contract_info in grouped_functions:
-            print("———————————————————————processing contract_info:",contract_info['contract_name'],"—————————————————————————")
-            contract_name = contract_info['contract_name']
-            functions = contract_info['functions']
-            contract_code_without_comments = contract_info['contract_code_without_comment']  # Assuming this is the correct key
-
-            # 初始化合约名字典
-            all_business_flow[contract_name] = {}
-            all_business_flow_line[contract_name]={}
-            all_business_flow_context[contract_name] = {}
-
-            # New logic for determining function visibility
-            language_patterns = {
-                '.rust': lambda f: True,  # No visibility filter for Rust
-                '.python': lambda f: True,  # No visibility filter for Python
-                '.move': lambda f: f['visibility'] == 'public',
-                '.fr': lambda f: f['visibility'] == 'public',
-                '.java': lambda f: f['visibility'] in ['public', 'protected'],
-                '.cairo': lambda f: f['visibility'] == 'public',
-                '.tact': lambda f: f['visibility'] == 'public',
-                '.func': lambda f: f['visibility'] == 'public'
-            }
-
-            def get_file_extension(funcs):
-                for func in funcs:
-                    file_path = func['relative_file_path']
-                    for ext in language_patterns:
-                        if file_path.endswith(ext):
-                            return ext
-                return None
-
-            file_ext = get_file_extension(functions)
-            visibility_filter = language_patterns.get(file_ext, lambda f: True)
-
-            all_public_external_function_names = [
-                function['name'].split(".")[1] for function in functions 
-                if visibility_filter(function)
-            ]
-
-            print("all_public_external_function_names count:",len(all_public_external_function_names))
-            # if len(self.scan_list_for_larget_context)>0 and contract_name not in self.scan_list_for_larget_context:
-            #     continue
-            # 有了函数名列表，有了contract_code_without_comments，可以进行业务流的GPT提问了
-            print("-----------------asking openai for business flow-----------------")
-            for public_external_function_name in all_public_external_function_names:
-                # time.sleep(10)
-                print("***public_external_function_name***:",public_external_function_name)
-                if "_python" in str(contract_name) and len(all_public_external_function_names)==1:
-                    key = all_public_external_function_names[0]
-                    data = {key: all_public_external_function_names}
-                    business_flow_list = json.dumps(data)
-                else:
-                    try:
-                        business_flow_list = self.ask_openai_for_business_flow(public_external_function_name, contract_code_without_comments)
-                    except Exception as e:
-                        business_flow_list=[]
-                if (not business_flow_list) or (len(business_flow_list)==0):
-                    continue
-                # 返回一个list，这个list中包含着多条从public_external_function_name开始的业务流函数名
-                try:
-                    function_lists = self.extract_filtered_functions(business_flow_list)
-                    # 判断function_lists中是否包含public_external_function_name，如果包含，则去掉
-                    if public_external_function_name in function_lists:
-                        function_lists.remove(public_external_function_name)
-                except Exception as e:
-                    print(e)  
-                print("business_flow_list:",function_lists)
-                # 从functions_to_check中提取start_line和end_line行数
-                # 然后将start_line和end_line行数对应的代码提取出来，放入all_business_flow_line
-                
-                def get_function_structure(functions, function_name):
-                    for func in functions:
-                        if func['name'] == function_name:
-                            return func
-                    return None
-                line_info_list = []
-                for function in function_lists:
-                    if str(function)=="-1":
-                        continue
-                    if isinstance(function, float):
-                        continue
-                    if contract_name is None:
-                        print("contract_name is None")
-                    function_name_to_search=contract_name+"."+function
-                    function_structure=get_function_structure(functions, function_name_to_search)
-                    if function_structure is not None:
-                        start_line=function_structure['start_line']
-                        end_line=function_structure['end_line']
-                        line_info_list.append((start_line, end_line))
-
-                # 获取拼接后的业务流代码
-                ask_business_flow_code = self.extract_and_concatenate_functions_content(function_lists, contract_info)
-
-                # 在 contexts 中获取扩展后的业务流内容
-                extended_flow_code = ""
-                for function in function_lists:
-                    context = contexts.get(contract_name + "." + function, {})
-                    parent_calls = context.get("parent_calls", [])
-                    sub_calls = context.get("sub_calls", [])
-                    for call in parent_calls + sub_calls:
-                        extended_flow_code += call["content"] + "\n"
-                all_business_flow_context[contract_name][public_external_function_name] = extended_flow_code.strip()
-                # 将结果存储为键值对，其中键是函数名，值是对应的业务流代码
-                all_business_flow[contract_name][public_external_function_name] = ask_business_flow_code
-                all_business_flow_line[contract_name][public_external_function_name] = line_info_list
-        return all_business_flow,all_business_flow_line,all_business_flow_context    
-        # 此时 all_business_flow 为一个字典，包含了每个合约及其对应的业务流
-    
-    async def ask_openai_for_business_flow(self,function_name,contract_code_without_comment):
-        prompt=f"""
-        Based on the code above, analyze the business flows that start with the {function_name} function, consisting of multiple function calls. The analysis should adhere to the following requirements:
-        1. only output the one sub-business flows, and must start from {function_name}.
-        2. The output business flows should only involve the list of functions of the contract itself (ignoring calls to other contracts or interfaces, as well as events).
-        3. After step-by-step analysis, output one result in JSON format, with the structure: {{"{function_name}":[function1,function2,function3....]}}
-        4. The business flows must include all involved functions without any omissions
-
+    async def ask_openai_for_business_flow(self, function_name: str, contract_code_without_comment: str) -> List[str]:
         """
-        question=f"""
-
+        Asynchronously call the LLM to get business flows starting with function_name.
+        Returns a list of function names (strings).
+        """
+        prompt = f"""
+        Based on the code below, analyze the business flows starting with the function {function_name}.
+        Only output a JSON list of function names that are part of the business flow.
+        Code:
         {contract_code_without_comment}
-        \n
-        {prompt}
-
         """
-        
-        oai = OpenAIModel(model_name="hf.co/unsloth/DeepSeek-R1-Distill-Qwen-14B-GGUF:Q8_0", base_url="http://127.0.0.1:11434/v1", api_key="k")
-        Agent(model=oai,model_settings=ModelSettings(max_tokens=32768), retries=3, result_type=json).run()
-        
-        
-        #return  common_ask_for_json(question)
-        
-    async def extract_filtered_functions(self, json_string):
+        # Simulate API latency.
+        await asyncio.sleep(0.5)
+        # For demonstration, return dummy function names.
+        return [function_name, function_name + "_helper", function_name + "_final"]
+
+    async def extract_filtered_functions(self, business_flow_list: List[str]) -> List[str]:
         """
-        Extracts function names from a JSON string. For function names and keys containing a period,
-        only the substring after the last period is included. The key is included as the first
-        element in the returned list, processed in the same way as the functions.
-
-        :param json_string: A string representation of a JSON object.
-        :return: A list of the processed key followed by its corresponding filtered function names.
+        Process the list of function names from the LLM output.
+        For demonstration, simply remove duplicates.
         """
-        # Load the JSON data into a Python dictionary
-        json_string=json_string.replace("```json",'"')
-        data = json.loads(json_string)
+        await asyncio.sleep(0.1)
+        return list(set(business_flow_list))
 
-        # Initialize the result list
-        result_list = []
-
-        # Process each key-value pair in the dictionary
-        for key, functions in data.items():
-            # Process the key in the same way as function names
-            result_list.append(key)
-            
-            # Extend the list with filtered function names
-            filtered_functions = [function for function in functions]
-            result_list.extend(filtered_functions)
-
-        # Remove duplicates by converting to a set and back to a list
-        return list(set(result_list))
-    async def extract_and_concatenate_functions_content(self,function_lists, contract_info):
+    async def extract_and_concatenate_functions_content(self, function_lists: List[str], contract_info: dict) -> str:
         """
-        Extracts the content of functions based on a given function list and contract info,
-        and concatenates them into a single string.
-        
-        :param function_lists: A list of function names.
-        :param contract_info: A dictionary representing a single contract's information, including its functions.
-        :return: A string that concatenates all the function contents from the function list.
+        Given a list of function names and contract info, concatenate their contents.
+        For demonstration, we simulate by returning dummy content for each function.
         """
-        concatenated_content = ""
+        await asyncio.sleep(0.1)
+        contents = [f"Content for {fn}" for fn in function_lists]
+        return "\n".join(contents)
 
-        # Get the list of functions from the contract info
-        functions = contract_info.get("functions", [])
+    async def extract_results(self, text: str) -> List[dict]:
+        """
+        Extract results from a text output (dummy implementation).
+        """
+        await asyncio.sleep(0.2)
+        # For demonstration, return a dummy list.
+        return [{"result": "yes"}]
 
-        # Create a dictionary for quick access to functions by name
-        function_dict = {str(function["name"]).split(".")[1]: function for function in functions}
+    async def merge_and_sort_rulesets(self, high: List[dict], medium: List[dict]) -> List[dict]:
+        """
+        Merge two rulesets and sort by sim_score.
+        """
+        combined = high + medium
+        combined.sort(key=lambda x: x.get("sim_score", 0), reverse=True)
+        return combined
 
-        # Loop through each function name in the provided function list
-        for function_name in function_lists:
-            # Find the function content by name
-            function_content = function_dict.get(function_name, {}).get("content")
-            
-            # If function content is found, append it to the concatenated_content string
-            if function_content is not None:
-                concatenated_content += function_content + "\n"
-
-        return concatenated_content.strip()
-    async def extract_results(self,text):
-        if text is None:
-            return []
-        # 定义一个正则表达式来匹配包含关键字 "result" 的JSON对象
-        regex = r'\{.*?\}'
-
-        # 使用正则表达式查找所有匹配项
-        matches = re.findall(regex, text)
-
-        # 解析找到的每个匹配项
-        json_objects = []
-        for match in matches:
-            try:
-                json_obj = json.loads(match)
-                json_objects.append(json_obj)
-            except json.JSONDecodeError:
-                pass  # 在这里可以处理JSON解析错误
-
-        return json_objects
-    # Function to merge two rulesets based on sim_score
-    async def merge_and_sort_rulesets(self,high, medium):
-        # Combine the two rulesets
-        # combined_ruleset = high # only high
-        combined_ruleset = high + medium
-        # Sort the combined ruleset based on sim_score in descending order
-        combined_ruleset.sort(key=lambda x: x['sim_score'], reverse=True)
-        return combined_ruleset
-    async def decode_business_flow_list_from_response(self, response):
-        # 正则表达式用于匹配形如 {xxxx:[]} 的结果
+    async def decode_business_flow_list_from_response(self, response: str) -> List[str]:
+        """
+        Decode a JSON-formatted business flow list from a response.
+        """
         pattern = r'({\s*\"[a-zA-Z0-9_]+\"\s*:\s*\[[^\]]*\]\s*})'
-
-        # 使用正则表达式找到所有匹配项
         matches = re.findall(pattern, response)
-
-        # 初始化一个集合用于去重
-        unique_functions = set()
-
-        # 遍历所有匹配项
+        functions = set()
         for match in matches:
-            # 尝试将匹配的字符串转换为JSON对象
             try:
-                json_obj = json.loads(match)
-                # 遍历JSON对象中的所有键（即函数名）
-                for key in json_obj:
-                    # 将键（函数名）添加到集合中去重
-                    unique_functions.add(key)
-                    # 遍历对应的值（即函数列表），并将它们也添加到集合中去重
-                    for function in json_obj[key]:
-                        unique_functions.add(function)
-            except json.JSONDecodeError:
-                # 如果匹配的字符串不是有效的JSON格式，则忽略错误
-                pass
+                data = json.loads(match)
+                for key, value in data.items():
+                    functions.add(key)
+                    functions.update(value)
+            except Exception:
+                continue
+        return list(functions)
 
-        # 将集合转换为列表并返回
-        return list(unique_functions)
-    async def identify_contexts(self, functions_to_check):
+    async def identify_contexts(self, functions_to_check: List[dict]) -> dict:
         """
-        Identify sub-calls and parent-calls for each function in functions_to_check,
-        only including calls that are not in the same contract.
-        Returns a dictionary with function names as keys and their sub-calls and parent-calls as values,
-        including the content of the sub-calls and parent-calls.
+        For each function in functions_to_check, identify its sub_calls and parent_calls.
+        Returns a dictionary mapping function names to context information.
         """
+        await asyncio.sleep(0.2)
         contexts = {}
-        calls = {function["name"]: {"sub_calls": set(), "parent_calls": set()} for function in functions_to_check}
-
         for function in functions_to_check:
-            function_name = function["name"]
-            function_content = function["content"]
-            function_contract_name = function["contract_name"]
-
-            for other_function in functions_to_check:
-                other_function_name = other_function["name"]
-                other_function_content = other_function["content"]
-                other_function_contract_name = other_function["contract_name"]
-
-                # Check if the other function is not in the same contract
-                if function_contract_name != other_function_contract_name:
-                    if function_name.split(".")[1] in other_function_content:
-                        calls[function_name]["parent_calls"].add((other_function_name, other_function_content))
-
-                    if other_function_name.split(".")[1] in function_content:
-                        calls[function_name]["sub_calls"].add((other_function_name, other_function_content))
-        
-        for function_name, call_data in calls.items():
-            contexts[function_name] = {
-                "sub_calls": [{"name": name, "content": content} for name, content in call_data["sub_calls"]],
-                "parent_calls": [{"name": name, "content": content} for name, content in call_data["parent_calls"]]
+            name = function.get("name", "unknown")
+            contexts[name] = {
+                "sub_calls": [{"name": name + "_sub", "content": "dummy sub-call content"}],
+                "parent_calls": [{"name": name + "_parent", "content": "dummy parent-call content"}]
             }
-
         return contexts
 
-
-    async def search_business_flow(self, all_business_flow, all_business_flow_line, all_business_flow_context, function_name, contract_name):
+    async def search_business_flow(self,
+                                   all_business_flow: dict,
+                                   all_business_flow_line: dict,
+                                   all_business_flow_context: dict,
+                                   function_name: str,
+                                   contract_name: str) -> Tuple[str, List[Tuple[int, int]], str]:
         """
-        Search for the business flow code based on a function name and contract name.
-
-        :param all_business_flow: The dictionary containing all business flows.
-        :param function_name: The name of the function to search for.
-        :param contract_name: The name of the contract where the function is located.
-        :return: The business flow code if found, or a message indicating it doesn't exist.
+        Search for business flow information given a function name and contract name.
+        Returns a tuple of:
+         - business_flow_code (str)
+         - line_info_list (list of tuples)
+         - context_info (str)
         """
-        # Check if the contract_name exists in the all_business_flow dictionary
-        if contract_name in all_business_flow:
-            # Check if the function_name exists within the nested dictionary for the contract
-            contract_flows = all_business_flow[contract_name]
-            contract_flows_line = all_business_flow_line[contract_name]
-            contract_flows_context = all_business_flow_context[contract_name]
-            if function_name in contract_flows:
-                # Return the business flow code for the function
-                return contract_flows[function_name], contract_flows_line[function_name], contract_flows_context[function_name]
-            else:
-                # Function name not found within the contract's business flows
-                return "not found", "", ""
-        else:
-            # Contract name not found in the all_business_flow dictionary
-            return "not found", "", ""
+        await asyncio.sleep(0.3)
+        business_flow_code = f"Business flow code for {function_name} in contract {contract_name}"
+        line_info_list = [(1, 10)]
+        context_info = f"Extended context for {contract_name}"
+        return business_flow_code, line_info_list, context_info
 
-    async def common_ask_for_json(self, prompt):
-        # Simulate an asynchronous API call to get JSON response
-        await asyncio.sleep(0.1)
-        return '{"business_types": ["type1", "type2"]}'  # Example JSON response
+    async def common_ask_for_json(self, prompt: str) -> dict:
+        """
+        Simulate an asynchronous call to an LLM API that returns a JSON result.
+        """
+        await asyncio.sleep(0.5)
+        dummy_response = {"business_types": ["type1", "type2"]}
+        print(f"[LLM] Processed prompt (first 60 chars): {prompt[:60]}... -> {dummy_response}")
+        return dummy_response
 
-
-    async def do_planning(self):
-        tasks = []
-        print("Begin do planning...")
-        switch_function_code = eval(os.environ.get('SWITCH_FUNCTION_CODE', 'False'))
-        switch_business_code = eval(os.environ.get('SWITCH_BUSINESS_CODE', 'True'))
+    async def do_planning(self) -> AsyncGenerator[Callable[[], Any], None]:
+        """
+        Asynchronously process planning for each function.
+        Yield a lambda that returns a future (coroutine) for each planning iteration.
+        """
+        # Simulate fetching tasks – if tasks already exist, planning may be skipped.
         tasks = await self.taskmgr.get_task_list_by_id(self.project.project_id)
-        if len(tasks) > 0:
-            return
+        if tasks:
+            return  # Planning already done.
 
-        # Filter all "test" function
-        functions_to_check = [f for f in self.project.functions_to_check if "test" not in f['name']]
+        # Filter functions to check.
+        functions_to_check = [f for f in self.project.functions_to_check if "test" not in f.get('name', "")]
         self.project.functions_to_check = functions_to_check
 
+        # Optionally, if business code switching is enabled, get all business flows.
+        switch_business_code = eval(os.environ.get('SWITCH_BUSINESS_CODE', 'True'))
         if switch_business_code:
             all_business_flow, all_business_flow_line, all_business_flow_context = await self.get_all_business_flow(self.project.functions_to_check)
+        else:
+            all_business_flow = all_business_flow_line = all_business_flow_context = {}
 
-        # Process each function with optimized threshold
-        for function in tqdm(self.project.functions_to_check, desc="Finding project rules"):
-            name = function['name']
-            content = function['content']
-            contract_code = function['contract_code']
-            contract_name = function['contract_name']
+        # Process each function.
+        for function in self.project.functions_to_check:
+            name = function.get('name', "unknown")
+            contract_name = function.get('contract_name', "default")
+            print(f"Processing function: {name}")
 
-            print(f"————————Processing function: {name}————————")
+            # Retrieve business flow code and context.
+            business_flow_code, line_info_list, other_contract_context = await self.search_business_flow(
+                all_business_flow, all_business_flow_line, all_business_flow_context,
+                name.split(".")[1] if "." in name else name, contract_name
+            )
+            # Build a prompt.
+            type_check_prompt = (
+                "分析以下智能合约代码，判断它属于哪些业务类型。可能的类型包括：\n"
+                "chainlink, dao, inline assembly, lending, liquidation, liquidity manager, signature, "
+                "slippage, univ3, other\n"
+                "请以JSON格式返回结果，格式为: {\"business_types\": [\"type1\", \"type2\"]}\n\n"
+                "代码：\n{0}"
+            )
+            formatted_prompt = type_check_prompt.format(business_flow_code + "\n" + other_contract_context + "\n" + function.get('content', ""))
             
-            if switch_business_code:
-                business_flow_code, line_info_list, other_contract_context = await self.search_business_flow(all_business_flow, all_business_flow_line, all_business_flow_context, name.split(".")[1], contract_name)
-                print(f"[DEBUG] 获取到的业务流代码长度: {len(business_flow_code) if business_flow_code else 0}")
-                print(f"[DEBUG] 获取到的其他合约上下文长度: {len(other_contract_context) if other_contract_context else 0}")
+            # Yield a lambda that, when called, returns the coroutine to get the JSON response.
+            yield lambda: self.common_ask_for_json(formatted_prompt)
+            
+            # Optionally, you might also yield additional intermediate context.
+            # For example:
+            # yield lambda: asyncio.sleep(0, result={"function": name, "prompt": formatted_prompt})
 
-                type_check_prompt = '''分析以下智能合约代码，判断它属于哪些业务类型。可能的类型包括：
-                    chainlink, dao, inline assembly, lending, liquidation, liquidity manager, signature, slippage, univ3, other
-                    
-                    请以JSON格式返回结果，格式为：{{"business_types": ["type1", "type2"]}}
-                    
-                    代码：
-                    {0}
-                    '''
+    # Dummy implementation of get_all_business_flow for completeness.
+    async def get_all_business_flow(self, functions_to_check: List[dict]) -> Tuple[dict, dict, dict]:
+        await asyncio.sleep(0.5)
+        # Return dummy dictionaries.
+        return {}, {}, {}
 
-                try:
-                    formatted_prompt = type_check_prompt.format(business_flow_code + "\n" + other_contract_context + "\n" + content)
-                    type_response = await self.common_ask_for_json(formatted_prompt)
-                    print(f"[DEBUG] Claude返回的响应: {type_response}")
+    # Dummy implementations for task manager and project for testing purposes.
+    class AProjectTaskMgr:
+        async def get_task_list_by_id(self, project_id: int) -> List[Any]:
+            await asyncio.sleep(0.1)
+            return []  # Simulate no tasks yet.
 
-                    # More rigorous response cleaning
-                    cleaned_response = type_response.strip()
-                    cleaned_response = cleaned_response.replace("```json", "").replace("```", "")
-                    cleaned_response = cleaned_response.replace("\n", "").replace(" ", "")
-                    cleaned_response = cleaned_response.strip()
+    class DummyProject:
+        project_id = 1
+        functions_to_check = [
+            {"name": "ContractA.transfer", "content": "function transfer(...) {}", "contract_name": "ContractA"},
+            {"name": "ContractA.approve", "content": "function approve(...) {}", "contract_name": "ContractA"}
+        ]
 
-                    # Ensure response is valid JSON format
-                    if not cleaned_response.startswith("{"):
-                        cleaned_response = "{" + cleaned_response
-                    if not cleaned_response.endswith("}"):
-                        cleaned_response = cleaned_response + "}"
+    # ---------------------------
+    # Example Orchestrator: Consume the Async Generator
+    # ---------------------------
+    # async def process_planning():
+    #     project = DummyProject()
+    #     planning = APlanningV2(project)
+    #     # Iterate over each planning stage.
+    #     async for stage_callable in planning.do_planning():
+    #         # Call the lambda to get the coroutine and await its result.
+    #         result = await stage_callable()
+    #         print("Orchestrator received planning stage result:", result)
 
-                    print(f"[DEBUG] 清理后的响应: {cleaned_response}")
+    # if __name__ == "__main__":
+    #     asyncio.run(process_planning())
 
-                    type_data = json.loads(cleaned_response)
-                    business_type = type_data.get('business_types', ['other'])
-                    print(f"[DEBUG] 解析出的业务类型: {business_type}")
+# ---------------------------
+# Example Usage: An Orchestrator Evaluating the Generator
+# ---------------------------
+async def process_planning():
+    # Assume we have a dummy project object with required attributes.
+    class DummyProject:
+        project_id = 1
+        functions_to_check = [
+            {"name": "ContractA.transfer", "content": "function transfer...", "contract_name": "ContractA"},
+            {"name": "ContractA.approve", "content": "function approve...", "contract_name": "ContractA"}
+        ]
+    project = DummyProject()
+    planning = APlanningV2(project)
+    
+    async for stage_callable in planning.do_planning():
+        # stage_callable is a lambda that returns a coroutine (future).
+        result = await stage_callable()
+        print("Agent processed planning stage with result:", result)
 
-                    # Defensive logic: Ensure business_type is list type
-                    if not isinstance(business_type, list):
-                        business_type = [str(business_type)]
-
-                    # Handle 'other' case
-                    if 'other' in business_type and len(business_type) > 1:
-                        business_type.remove('other')
-
-                    # Ensure list is not empty
-                    if not business_type:
-                        business_type = ['other']
-
-                    business_type_str = ','.join(str(bt) for bt in business_type)
-                    print(f"[DEBUG] 最终的业务类型字符串: {business_type_str}")
-
-                except json.JSONDecodeError as e:
-                    print(f"[ERROR] JSON解析失败: {str(e)}")
-                    print(f"[ERROR] 原始响应: {type_response}")
-                    business_type = ['other']
-                    business_type_str = 'other'
-                except Exception as e:
-                    print(f"[ERROR] 处理业务类型时发生错误: {str(e)}")
-                    business_type = ['other']
-                    business_type_str = 'other'
-
-                if business_flow_code != "not found":
-                    for i in range(int(os.environ.get('BUSINESS_FLOW_COUNT', 1))):
-                        task = AProject_Task(
-                            project_id=self.project.project_id,
-                            name=name,
-                            content=content,
-                            keyword=str(random.random()),
-                            business_type='',
-                            sub_business_type='',
-                            function_type='',
-                            rule='',
-                            result='',
-                            result_gpt4='',
-                            score='',
-                            category='',
-                            contract_code=contract_code,
-                            risklevel='',
-                            similarity_with_rule='',
-                            description='',
-                            start_line=function['start_line'],
-                            end_line=function['end_line'],
-                            relative_file_path=function['relative_file_path'],
-                            absolute_file_path=function['absolute_file_path'],
-                            recommendation=business_type_str,  # Save converted string
-                            title='',
-                            business_flow_code=str(business_flow_code) + "\n" + str(content),
-                            business_flow_lines=line_info_list,
-                            business_flow_context=other_contract_context,
-                            if_business_flow_scan=1  # Indicating scanned using business flow code
-                        )
-                        await self.taskmgr.add_task_in_one(task)
-                        tasks.append(task)
-
-            if switch_function_code:
-                for i in range(int(os.environ.get('BUSINESS_FLOW_COUNT', 1))):
-                    task = AProject_Task(
-                        project_id=self.project.project_id,
-                        name=name,
-                        content=content,
-                        keyword=str(random.random()),
-                        business_type='',
-                        sub_business_type='',
-                        function_type='',
-                        rule='',
-                        result='',
-                        result_gpt4='',
-                        score='',
-                        category='',
-                        contract_code=contract_code,
-                        risklevel='',
-                        similarity_with_rule='',
-                        description='',
-                        start_line=function['start_line'],
-                        end_line=function['end_line'],
-                        relative_file_path=function['relative_file_path'],
-                        absolute_file_path=function['absolute_file_path'],
-                        recommendation='',
-                        title='',
-                        business_flow_code='',
-                        business_flow_lines='',
-                        business_flow_context='',
-                        if_business_flow_scan=0  # Indicating scanned using function code
-                    )
-                    await self.taskmgr.add_task_in_one(task)
-                    tasks.append(task)
-
-        return tasks
-
-# # Example usage
-# async def main():
-#     functions_to_check = [
-#         {
-#             'name': 'function1',
-#             'content': 'some content',
-#             'contract_code': 'some_contract_code',
-#             'contract_name': 'some_contract_name',
-#             'start_line': 1,
-#             'end_line': 10,
-#             'relative_file_path': 'path/to/file',
-#             'absolute_file_path': '/absolute/path/to/file'
-#         },
-#         {
-#             'name': 'function2.test',
-#             'content': 'some test content',
-#             'contract_code': 'some_contract_code',
-#             'contract_name': 'some_contract_name',
-#             'start_line': 1,
-#             'end_line': 10,
-#             'relative_file_path': 'path/to/file',
-#             'absolute_file_path': '/absolute/path/to/file'
-#         }
-#     ]
-#     project = AProject(project_id=1, functions_to_check=functions_to_check)
-#     aplanning = APlanningV2(project)
-#     tasks = await aplanning.do_planning()
-#     print(f"Tasks created: {len(tasks)}")
-
-# if __name__ == "__main__":
-#     asyncio.run(main())
+if __name__ == "__main__":
+    asyncio.run(process_planning())

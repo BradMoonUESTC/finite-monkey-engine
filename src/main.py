@@ -1,5 +1,4 @@
 import argparse
-import ast
 import os
 import time
 import audit_config
@@ -7,7 +6,6 @@ from ai_engine import *
 from project import ProjectAudit
 from library.dataset_utils import load_dataset, Project
 from planning import PlanningV2
-from prompts import prompts
 from sqlalchemy import create_engine
 from dao import CacheManager, ProjectTaskMgr
 import pandas as pd
@@ -196,7 +194,7 @@ if __name__ == '__main__':
         #     check_function_vul(engine)  # confirm
         # elif args.cmd == 'all':
         lancedb=scan_project(project, engine)  # scan
-        check_function_vul(engine,lancedb)  # confirm
+        check_function_vul(engine,lancedb, lance_table_name, project_audit)  # confirm
 
         end_time = time.time()
         print("Total time:", end_time -start_time)

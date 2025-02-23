@@ -1,30 +1,77 @@
+import asyncio
 from concurrent.futures import ThreadPoolExecutor
-import json
-import re
-import threading
-import time
-from typing import List
-import requests
-import tqdm
-#from sklearn.metrics.pairwise import cosine_similarity
-from concurrent.futures import ThreadPoolExecutor, as_completed
+import os
+from typing import Any, Coroutine, List
+from venv import logger
 from tqdm import tqdm
-import warnings
-import urllib3
-warnings.filterwarnings('ignore', category=urllib3.exceptions.NotOpenSSLWarning)
-from dao.entity import Project_Task
-from prompt_factory.prompt_assembler import PromptAssembler
-from prompt_factory.core_prompt import CorePrompt
-from openai_api.openai import *
+# import lancedb
+from dao.atask_mgr import AProject_Task, AProjectTaskMgr
+from planning.aplanning_v2 import APlanningV2
+from ai_engine import PromptAssembler, as_completed
+import re
+from json import loads,JSONDecodeError
+import time
+# ... other imports ...
 
-class AiEngine(object):
-    def __init__(self, planning, taskmgr,lancedb,lance_table_name,project_audit):
+class AiEngine:
+    def __init__(self, planning, taskmgr, lance, lance_table_name, project_audit):
         # Step 1: 获取results
-        self.planning = planning
-        self.project_taskmgr = taskmgr
-        self.lancedb=lancedb
-        self.lance_table_name=lance_table_name
-        self.project_audit=project_audit
+        self.planning:APlanningV2 = planning
+        self.project_taskmgr:AProjectTaskMgr = taskmgr
+        self.lancedb:Coroutine[Any, Any, Any]  = lance
+        self.lance_table_name = lance_table_name
+        self.project_audit = project_audit
+        self.executor = ThreadPoolExecutor(max_workers=int(os.getenv("MAX_THREADS_OF_SCAN", 5)))
+    
+    async def do_scan(self, is_gpt4=False, filter_func=None):
+        tasks:  Coroutine[Any, Any, Any] = self.project_taskmgr.get_task_list()
+        if not tasks:
+            logger.warn("AI ASYNC ENG no Tasks in the project, is the DB ok?")
+            return
+        
+        async def process_task(task):
+            # Assemble prompt based on environment; assume PromptAssembler methods are synchronous.
+            scan_mode = os.getenv("SCAN_MODE", "COMMON_VUL")
+            if scan_mode == "OPTIMIZE":
+                prompt = PromptAssembler.assemble_optimize_prompt(task.content)
+            elif scan_mode == "COMMON_PROJECT":
+                prompt = PromptAssembler.assemble_prompt_common(task.content)
+            elif scan_mode == "PURE_SCAN":
+                prompt = PromptAssembler.assemble_prompt_pure(task.content)
+            elif scan_mode == "SPECIFIC_PROJECT":
+                business_types = task.recommendation.split(',')
+                prompt = PromptAssembler.assemble_prompt_for_specific_project(task.content, business_types)
+            else:
+                prompt = PromptAssembler.assemble_prompt_common(task.content)
+            
+            # Call async LLM API via our async wrapper
+            response_vul = await async_ask_claude(prompt)
+            response_vul = response_vul or "no"
+            # Update task result; if update_result is blocking, offload it:
+            await asyncio.to_thread(self.project_taskmgr.update_result, task.id, response_vul, "", "")
+        
+        await asyncio.gather(*(process_task(task) for task in tasks))
+        return tasks
+
+    async def check_function_vul(self):
+        tasks = self.project_taskmgr.get_task_list()
+        if not tasks:
+            return
+        
+        async def process_check(task):
+            prompt = PromptAssembler.assemble_vul_check_prompt(task.content, task.get_result(False))
+            # Assume we create an async wrapper for confirmation API calls;
+            # if not, wrap the blocking call via asyncio.to_thread:
+            initial_response = await asyncio.to_thread(common_ask_confirmation, prompt)
+            if not initial_response:
+                print(f"Empty response for task {task.id}")
+                return
+            # Additional processing, JSON parsing, voting logic etc.
+            # Finally, update results (offload DB call):
+            await asyncio.to_thread(self.project_taskmgr.update_result, task.id, task.get_result(False), "final_status", "final_response")
+        
+        await asyncio.gather(*(process_check(task) for task in tasks))
+        return tasks
     def do_planning(self):
         self.planning.do_planning()
     def extract_title_from_text(self,input_text):
@@ -42,7 +89,7 @@ class AiEngine(object):
                 return "Logic Error"
         except Exception as e:
             # Handling any exception that occurs and returning a message
-            return f"Logic Error"
+            return f"Logic Error {str(e)}"
 
     def process_task_do_scan(self,task, filter_func = None, is_gpt4 = False):
         
@@ -104,11 +151,10 @@ class AiEngine(object):
                     pbar.update(1)  # 更新进度条
 
         return tasks
-    def process_task_check_vul(self, task:Project_Task):
+    def process_task_check_vul(self, task:AProject_Task):
         print("\n" + "="*80)
         print(f"Processing Task ID: {task.id}")
         print("="*80)
-        
         starttime = time.time()
         result = task.get_result(False)
         result_CN = task.get_result_CN()
@@ -200,7 +246,7 @@ class AiEngine(object):
             print(round_json_response)
             
             try:
-                response_data = json.loads(round_json_response)
+                response_data = loads(round_json_response)
                 result_status = response_data.get("result", "").lower()
                 print("\n🎯 Extracted Result Status:")
                 print(result_status)
@@ -214,7 +260,7 @@ class AiEngine(object):
                     final_response = f"Analysis stopped after round {i+1} due to clear 'no vulnerability' result"
                     continue  # 使用 continue 让循环能够在下一轮开始时通过上面的 break 检查退出
                 
-            except json.JSONDecodeError:
+            except JSONDecodeError:
                 print("\n⚠️ JSON Decode Error - marking as 'not sure'")
                 confirmation_results.append("not sure")
         
@@ -286,8 +332,7 @@ class AiEngine(object):
             return collected_funcs, level_stats
 
         all_related_functions = []
-        statistics = {
-            'total_layers': level,
+        statistics: dict[str, dict[int, int]] = {
             'upstream_stats': {},
             'downstream_stats': {}
         }
@@ -307,9 +352,10 @@ class AiEngine(object):
                         all_related_functions.extend(upstream_funcs)
                         # 合并上游统计信息
                         for level, count in upstream_stats.items():
-                            statistics['upstream_stats'][level] = (
-                                statistics['upstream_stats'].get(level, 0) + count
-                            )
+                            if isinstance(statistics['upstream_stats'], dict):
+                                statistics['upstream_stats'][level] = statistics['upstream_stats'].get(level, 0) + count
+                            else: # the following line is unreachable
+                                statistics['upstream_stats'] = {level: count}
                             
                     # 处理下游调用树
                     if tree_data['downstream_tree']:
@@ -317,9 +363,8 @@ class AiEngine(object):
                         all_related_functions.extend(downstream_funcs)
                         # 合并下游统计信息
                         for level, count in downstream_stats.items():
-                            statistics['downstream_stats'][level] = (
-                                statistics['downstream_stats'].get(level, 0) + count
-                            )
+                            # TODO #?? Double check this
+                            statistics['downstream_stats'][level] = statistics['downstream_stats'].get(level, 0) + count
                         
                     # 添加原始函数本身
                     for func in self.project_audit.functions_to_check:
@@ -360,7 +405,7 @@ class AiEngine(object):
         combined_text = '\n\n'.join(combined_text_parts)
         
         # 打印统计信息
-        print(f"\nFunction Call Tree Statistics:")
+        print("\nFunction Call Tree Statistics:")
         print(f"Total Layers Analyzed: {level}")
         print("\nUpstream Statistics:")
         for layer, count in statistics['upstream_stats'].items():

@@ -1,12 +1,13 @@
 # Generated from Solidity.g4 by ANTLR 4.13.1
 # encoding: utf-8
-from antlr4 import *
+from antlr4 import DFA, Parser, RuleContext, Token, TokenStream, ParserRuleContext, PredictionContextCache, ParseTreeVisitor, ParseTreeListener, ParserATNSimulator
 from io import StringIO
 import sys
-if sys.version_info[1] > 5:
-	from typing import TextIO
-else:
-	from typing.io import TextIO
+from antlr4.atn.ATNDeserializer import ATNDeserializer
+from antlr4 import RecognitionException
+from antlr4.atn.ATN import ATN
+from antlr4.error.Errors import NoViableAltException
+from typing import TextIO
 
 def serializedATN():
     return [
@@ -9011,7 +9012,7 @@ class SolidityParser ( Parser ):
 
 
     def sempred(self, localctx:RuleContext, ruleIndex:int, predIndex:int):
-        if self._predicates == None:
+        if not hasattr(self, '_predicates') or self._predicates is None:
             self._predicates = dict()
         self._predicates[38] = self.typeName_sempred
         self._predicates[70] = self.expression_sempred
