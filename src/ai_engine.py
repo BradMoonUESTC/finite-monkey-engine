@@ -40,6 +40,36 @@ class AiEngine(object):
             response_vul=ask_claude(prompt)
             print(response_vul)
             response_vul = response_vul if response_vul is not None else ""
+            
+            # 提取JSON内容
+            try:
+                # 查找JSON内容的开始和结束位置
+                json_start = response_vul.find('{')
+                json_end = response_vul.rfind('}') + 1
+                if json_start != -1 and json_end != -1:
+                    json_content = response_vul[json_start:json_end]
+                    response_data = json.loads(json_content)
+                    
+                    # 提取summary并重新组织内容
+                    summary = response_data.get('summary', '')
+                    # 删除summary键值对
+                    if 'summary' in response_data:
+                        del response_data['summary']
+                    
+                    # 重新组织内容
+                    formatted_response = f"{summary}\n\n"
+                    for key, value in response_data.items():
+                        if isinstance(value, list):
+                            formatted_response += f"{key}:\n" + "\n".join([f"- {item}" for item in value]) + "\n\n"
+                        else:
+                            formatted_response += f"{key}: {value}\n\n"
+                    
+                    response_vul = formatted_response
+            except json.JSONDecodeError:
+                print("\t Failed to parse JSON content")
+            except Exception as e:
+                print(f"\t Error processing response: {str(e)}")
+            
             breif_prompt=f"基于扫描结果，对这个结果进行一个单词的总结，判断一下这个结果的结论是否存在{title}风险，输出为json形式，如果结果为有此{title}风险，则输出为{{'risk':true}}，否则输出为{{'risk':false}}"             
             response_breif=common_ask_for_json(response_vul+breif_prompt)
             print(response_breif)
