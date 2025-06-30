@@ -272,7 +272,7 @@ class PlanningProcessor:
         recommendation = business_type_str
         
         # 如果是COMMON_PROJECT_FINE_GRAINED模式，设置checklist类型到recommendation
-        if config and config['scan_mode'] == "COMMON_PROJECT_FINE_GRAINED":
+        if config and config['scan_mode'] in ["COMMON_PROJECT_FINE_GRAINED", "JUST_ASK"]:
             # 获取当前checklist类型
             checklist_dict = VulPromptCommon.vul_prompt_common_new(self.fine_grained_counter % config['total_checklist_count'])
             if checklist_dict:

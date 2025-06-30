@@ -49,6 +49,31 @@ class ScanUtils:
                 return PromptAssembler.assemble_prompt_common_fine_grained(code_to_be_tested, current_index)
             else:
                 raise ValueError("Neither task.recommendation nor current_index is available for COMMON_PROJECT_FINE_GRAINED mode")
+        elif scan_mode == "JUST_ASK":
+            # 在JUST_ASK模式下，使用solidity_audit_agent_prompt
+            if hasattr(task, 'recommendation') and task.recommendation:
+                print(f"[DEBUG🐞]📋Using pre-set checklist type from recommendation for JUST_ASK: {task.recommendation}")
+                # 根据checklist类型名称获取对应的checklist内容
+                all_checklists = VulPromptCommon.vul_prompt_common_new()
+                if task.recommendation in all_checklists:
+                    checklist_content = "\n".join(all_checklists[task.recommendation])
+                    return PromptAssembler.solidity_audit_agent_prompt(code_to_be_tested, checklist_content)
+                else:
+                    print(f"[WARNING] Checklist type '{task.recommendation}' not found for JUST_ASK mode")
+                    # 使用第一个checklist作为fallback
+                    first_checklist = list(all_checklists.values())[0]
+                    checklist_content = "\n".join(first_checklist)
+                    return PromptAssembler.solidity_audit_agent_prompt(code_to_be_tested, checklist_content)
+            elif current_index is not None:
+                print(f"[DEBUG🐞]📋Using prompt index {current_index} for JUST_ASK scan (fallback)")
+                checklist_dict = VulPromptCommon.vul_prompt_common_new(current_index)
+                if checklist_dict:
+                    checklist_content = "\n".join(list(checklist_dict.values())[0])
+                    return PromptAssembler.solidity_audit_agent_prompt(code_to_be_tested, checklist_content)
+                else:
+                    raise ValueError(f"Unable to get checklist for index {current_index} in JUST_ASK mode")
+            else:
+                raise ValueError("Neither task.recommendation nor current_index is available for JUST_ASK mode")
         elif scan_mode == "PURE_SCAN":
             return PromptAssembler.assemble_prompt_pure(code_to_be_tested)
         elif scan_mode == "SPECIFIC_PROJECT":

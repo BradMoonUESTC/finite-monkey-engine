@@ -122,6 +122,7 @@ VUL_MODEL=claude-4-sonnet
 # - CHECKLIST (automatic checklist generation)
 # - CHECKLIST_PIPELINE (checklist generation + pipeline)
 # - COMMON_PROJECT_FINE_GRAINED (common project checklist individual queries, 10x cost increase)
+# - JUST_ASK (simple audit agent prompt with Gemini model, similar planning as COMMON_PROJECT_FINE_GRAINED)
 SCAN_MODE=PURE_SCAN
 
 # API service provider selection

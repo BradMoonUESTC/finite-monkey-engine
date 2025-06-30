@@ -94,13 +94,13 @@ class ConfigUtils:
         
         # 获取所有checklist的数量
         total_checklist_count = 0
-        if scan_mode == "COMMON_PROJECT_FINE_GRAINED":
+        if scan_mode in ["COMMON_PROJECT_FINE_GRAINED", "JUST_ASK"]:
             from prompt_factory.vul_prompt_common import VulPromptCommon
             vul_checklists = VulPromptCommon.vul_prompt_common_new()
             total_checklist_count = len(vul_checklists)
         
         # 计算实际循环次数
-        actual_iteration_count = base_iteration_count * total_checklist_count if scan_mode == "COMMON_PROJECT_FINE_GRAINED" else base_iteration_count
+        actual_iteration_count = base_iteration_count * total_checklist_count if scan_mode in ["COMMON_PROJECT_FINE_GRAINED", "JUST_ASK"] else base_iteration_count
         
         return {
             'scan_mode': scan_mode,

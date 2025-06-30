@@ -8,6 +8,36 @@ import os
 import pandas as pd
 
 class PromptAssembler:
+    def solidity_audit_agent_prompt(code,checklist):
+        ret_prompt=f"""
+            You are a smart contract auditor. Please help me find the bugs in the given code. Please consider whether the following types of bugs exist:
+            {checklist}
+
+            The contract may not have any bugs, just report those you are sure and high risk. For each bug you find, please report in the following format:
+            == Bug Reported ==
+            Summary: [A brief summary of the bug]
+            Vuln Type: [Several Word Description of the Bug]
+            Risk: [High/Medium/Low/Informational]
+            Finding description and impact: [A detailed description of the bug and its impact]
+            ```solidity
+            [The code snippet that contains the bug]
+            ```
+            Recommended mitigation steps: [A brief description of how to fix the bug or mitigate its impact]
+            Step by step PoC: [A step by step PoC to reproduce the bug]
+            ```solidity
+            [The code snippet that contains the PoC]
+            ```
+            == End of Bug Report ==
+
+            The code is as follows:
+            ```solidity
+            {code}
+            ```
+
+            If the bug is not found, please return "No bugs found". Please do not return any other information.
+
+        """
+        return ret_prompt
     def assemble_prompt_common(code):
         ret_prompt=code+"\n"\
                     +PeripheryPrompt.role_set_solidity_common()+"\n"\

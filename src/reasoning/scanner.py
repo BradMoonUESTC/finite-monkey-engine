@@ -94,8 +94,13 @@ class VulnerabilityScanner:
         prompt = ScanUtils.get_scan_prompt(code_to_be_tested, task)
         
         # 发送请求并获取响应
-        response_vul = ask_vul(prompt)
-        print(f"[DEBUG] AI response: {response_vul[:50] if response_vul else 'None'}")
+        if os.getenv("SCAN_MODE", "COMMON_VUL") == "JUST_ASK":
+            from openai_api.openai import ask_gemini
+            response_vul = ask_gemini(prompt)
+            print(f"[DEBUG] Gemini response: {response_vul[:50] if response_vul else 'None'}")
+        else:
+            response_vul = ask_vul(prompt)
+            print(f"[DEBUG] AI response: {response_vul[:50] if response_vul else 'None'}")
         
         # 处理响应
         response_vul = ScanUtils.process_scan_response(response_vul)
@@ -120,7 +125,7 @@ class VulnerabilityScanner:
 
         # 在COMMON_PROJECT_FINE_GRAINED模式下，使用task.recommendation作为checklist类型标识
         current_index = None
-        if os.getenv("SCAN_MODE", "COMMON_VUL") == "COMMON_PROJECT_FINE_GRAINED":
+        if os.getenv("SCAN_MODE", "COMMON_VUL") in ["COMMON_PROJECT_FINE_GRAINED", "JUST_ASK"]:
             # 如果有recommendation，使用它来确定current_index用于对话历史
             if hasattr(task, 'recommendation') and task.recommendation:
                 all_checklists = VulPromptCommon.vul_prompt_common_new()
@@ -154,8 +159,13 @@ class VulnerabilityScanner:
         print(f"\n📝 基础提示词长度: {len(prompt)} 字符")
         
         # 发送请求并获取响应
-        response_vul = ask_claude(prompt)
-        print(f"\n✨ 本轮响应长度: {len(response_vul) if response_vul else 0} 字符")
+        if os.getenv("SCAN_MODE", "COMMON_VUL") == "JUST_ASK":
+            from openai_api.openai import ask_gemini
+            response_vul = ask_gemini(prompt)
+            print(f"\n✨ Gemini 本轮响应长度: {len(response_vul) if response_vul else 0} 字符")
+        else:
+            response_vul = ask_claude(prompt)
+            print(f"\n✨ 本轮响应长度: {len(response_vul) if response_vul else 0} 字符")
         
         # 保存对话历史
         if response_vul:
