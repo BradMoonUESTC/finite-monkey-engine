@@ -131,6 +131,135 @@ def generate_excel(output_path, project_id):
     wb.save(output_path)
     
     print(f"Excel文件已保存到: {output_path}")
+def generate_markdown_report(output_path, project_id):
+    project_taskmgr = ProjectTaskMgr(project_id, engine)
+    entities = project_taskmgr.query_task_by_project_id(project.id)
+    
+    # 创建一个空的列表来存储所有实体的数据
+    data = []
+    for entity in entities:
+        if "yes" in str(entity.result_gpt4).lower() and len(entity.business_flow_code)<=600:
+            data.append({
+                '漏洞结果': entity.result,
+                'ID': entity.id,
+                '项目名称': entity.project_id,
+                '合同编号': clean_code_display(entity.contract_code),
+                'UUID': entity.key,
+                '函数名称': entity.name,
+                '函数代码': clean_code_display(entity.content),
+                '开始行': entity.start_line,
+                '结束行': entity.end_line,
+                '相对路径': entity.relative_file_path,
+                '绝对路径': entity.absolute_file_path,
+                '业务流程代码': clean_code_display(entity.business_flow_code),
+                '业务流程行': entity.business_flow_lines,
+                '业务流程上下文': clean_code_display(entity.business_flow_context),
+                '确认结果': entity.result_gpt4,
+                '确认细节': entity.category
+            })
+    
+    # 检查是否有数据
+    if not data:
+        print("No data to process")
+        return
+        
+    df = pd.DataFrame(data)
+    
+    try:
+        # 对df进行漏洞归集处理
+        res_processor = ResProcessor(df)
+        processed_df = res_processor.process()
+        
+        # 确保所有必需的列都存在
+        required_columns = df.columns
+        for col in required_columns:
+            if col not in processed_df.columns:
+                processed_df[col] = ''
+                
+        # 重新排列列顺序以匹配原始DataFrame
+        processed_df = processed_df[df.columns]
+    except Exception as e:
+        print(f"Error processing data: {e}")
+        processed_df = df  # 如果处理失败，使用原始DataFrame
+    
+    # 确保输出目录存在
+    output_dir = os.path.dirname(output_path)
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+    
+    # 生成Markdown内容
+    markdown_content = f"# 项目漏洞报告 - {project_id}\n\n"
+    markdown_content += f"## 概述\n\n"
+    markdown_content += f"- 项目ID: {project_id}\n"
+    markdown_content += f"- 发现漏洞数量: {len(processed_df)}\n\n"
+    
+    # 添加每个漏洞的详细信息
+    markdown_content += "## 漏洞详情\n\n"
+    
+    for idx, row in processed_df.iterrows():
+        # 漏洞标题部分
+        markdown_content += f"### 漏洞 {idx + 1}: {row['函数名称']}\n\n"
+        
+        # 基本信息部分
+        markdown_content += "#### 基本信息\n\n"
+        markdown_content += f"- **ID**: {row['ID']}\n"
+        markdown_content += f"- **项目名称**: {row['项目名称']}\n"
+        markdown_content += f"- **合同编号**: {row['合同编号']}\n"
+        markdown_content += f"- **UUID**: {row['UUID']}\n"
+        
+        # 漏洞描述部分
+        markdown_content += "\n#### 漏洞描述\n\n"
+        markdown_content += f"{row['漏洞结果']}\n\n"
+        
+        # 函数信息部分
+        markdown_content += "#### 函数信息\n\n"
+        markdown_content += f"- **函数名称**: {row['函数名称']}\n"
+        markdown_content += f"- **位置**: {row['相对路径']} (行 {row['开始行']}-{row['结束行']})\n"
+        markdown_content += f"- **完整路径**: {row['绝对路径']}\n\n"
+        
+        # 代码部分
+        markdown_content += "#### 相关代码\n\n"
+        if row['函数代码'].strip():
+            code_lines = row['函数代码'].strip().split('\n')
+            formatted_code = '\n'.join('    ' + line if line.strip() else '' for line in code_lines)
+            markdown_content += formatted_code + "\n\n"
+        
+        # 业务流程部分
+        markdown_content += "#### 业务流程分析\n\n"
+        markdown_content += f"- **业务流程行**: {row['业务流程行']}\n\n"
+        
+        # 业务流程代码
+        if row['业务流程代码'].strip():
+            markdown_content += "**业务流程代码**:\n\n"
+            flow_lines = row['业务流程代码'].strip().split('\n')
+            formatted_flow = '\n'.join('    ' + line if line.strip() else '' for line in flow_lines)
+            markdown_content += formatted_flow + "\n\n"
+        
+        # 业务流程上下文
+        if row['业务流程上下文'].strip():
+            markdown_content += "**业务流程上下文**:\n\n"
+            context_lines = row['业务流程上下文'].strip().split('\n')
+            formatted_context = '\n'.join('    ' + line if line.strip() else '' for line in context_lines)
+            markdown_content += formatted_context + "\n\n"
+        
+        # 确认信息部分
+        markdown_content += "#### 漏洞确认\n\n"
+        
+        markdown_content += f"**确认结果**:\n {row['确认结果']}\n"
+            
+        markdown_content += f"**漏洞类型**:\n {row['确认细节']}\n\n"
+        
+        markdown_content += "---\n\n"  # 分隔线
+    
+    # 写入Markdown文件
+    with open(output_path, 'w', encoding='utf-8') as f:
+        f.write(markdown_content)
+    
+    print(f"Markdown文件已保存到: {output_path}")
+def clean_code_display(text):
+    # add '''js ''' to the text
+    return f"\n```js\n{text}\n```"
+
 if __name__ == '__main__':
 
     switch_production_or_test = 'test' # prod / test
@@ -164,6 +293,7 @@ if __name__ == '__main__':
         end_time=time.time()
         print("Total time:",end_time-start_time)
         generate_excel("./output.xlsx",project_id)
+        generate_markdown_report("./output.md",project_id)
         
         
     if switch_production_or_test == 'prod':
@@ -212,7 +342,7 @@ if __name__ == '__main__':
         end_time = time.time()
         print("Total time:", end_time -start_time)
         generate_excel(args.o,args.id)
-
+        generate_markdown_report(args.o,args.id)
 
 
 
