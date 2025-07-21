@@ -110,5 +110,6 @@ class ConfigUtils:
             'threshold': int(os.getenv("THRESHOLD_OF_PLANNING", 200)),
             'switch_business_code': eval(os.environ.get('SWITCH_BUSINESS_CODE', 'True')),
             'switch_file_code': eval(os.environ.get('SWITCH_FILE_CODE', 'False')),
-            'cross_contract_scan': os.getenv("CROSS_CONTRACT_SCAN") == "True"
+            'cross_contract_scan': os.getenv("CROSS_CONTRACT_SCAN") == "True",
+            'huge_project': eval(os.environ.get('HUGE_PROJECT', 'False'))  # 🆕 新增 huge_project 开关
         } 

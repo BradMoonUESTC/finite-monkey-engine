@@ -1,4 +1,5 @@
 from typing import List, Dict, Tuple, Union, Optional
+import os
 
 
 class FunctionUtils:
@@ -25,6 +26,12 @@ class FunctionUtils:
             - 如果return_pairs=False: 返回拼接后的函数内容文本
             - 如果return_pairs=True: 返回(拼接文本, [(函数名, 函数内容), ...])
         """
+        # 🆕 检查 huge_project 开关
+        huge_project = eval(os.environ.get('HUGE_PROJECT', 'False'))
+        if huge_project:
+            print("🚀 检测到 HUGE_PROJECT=True，跳过 call tree 相关函数提取")
+            return ("", []) if return_pairs else ""
+        
         # 兼容不同的项目对象
         if hasattr(project_or_project_audit, 'call_trees'):
             call_trees = project_or_project_audit.call_trees

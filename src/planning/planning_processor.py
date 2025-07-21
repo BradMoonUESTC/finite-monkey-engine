@@ -341,7 +341,7 @@ class PlanningProcessor:
             print(f"   原始函数数: {len(flow_functions)}")
             
             # 1. 扩展业务流上下文
-            expanded_functions = self._expand_business_flow_context(flow_functions, flow_name)
+            expanded_functions = self._expand_business_flow_context(flow_functions, flow_name, config)
             
             print(f"   扩展后函数数: {len(expanded_functions)}")
             
@@ -375,7 +375,7 @@ class PlanningProcessor:
                     print(f"\n🔄 处理复合业务流: '{compound_name}'")
                     
                     # 扩展复合业务流上下文
-                    expanded_compound = self._expand_business_flow_context(compound_functions, compound_name)
+                    expanded_compound = self._expand_business_flow_context(compound_functions, compound_name, config)
                     
                     # 记录扩展后的函数
                     all_expanded_functions.extend(expanded_compound)
@@ -399,17 +399,23 @@ class PlanningProcessor:
     
 
     
-    def _expand_business_flow_context(self, flow_functions: List[Dict], flow_name: str) -> List[Dict]:
+    def _expand_business_flow_context(self, flow_functions: List[Dict], flow_name: str, config: Dict = None) -> List[Dict]:
         """扩展业务流的上下文，使用call tree和rag进行1层扩展
         
         Args:
             flow_functions: 业务流中的原始函数列表
             flow_name: 业务流名称
+            config: 配置信息
             
         Returns:
             List[Dict]: 扩展后的函数列表（已去重）
         """
         print(f"   🔍 开始扩展业务流 '{flow_name}' 的上下文...")
+        
+        # 🆕 检查 huge_project 开关
+        if config and config.get('huge_project', False):
+            print(f"   🚀 检测到 huge_project=True，跳过上下文扩展，直接使用原始函数")
+            return flow_functions
         
         # 存储所有扩展后的函数，使用set去重
         expanded_functions_set = set()

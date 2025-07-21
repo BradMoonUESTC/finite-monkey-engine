@@ -248,8 +248,8 @@
         "exclude_in_planning":"true",
         "exclude_directory":["exclude"]
     },
-    "chainlink072111":{
-        "path":"chainlink",
+    "tonvm":{
+        "path":"tonvm",
         "files":[
         ],
         "functions":[],
