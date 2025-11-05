@@ -1,13 +1,13 @@
 {
-  "openai_general": "gpt-4.1",
-  "code_assumptions_analysis": "claude-sonnet-4-5",
-  "vulnerability_detection": "claude-sonnet-4-5",
-  "group_results_summarization": "claude-sonnet-4-5",
-  "initial_vulnerability_validation": "gpt-5-codex",
-  "vulnerability_findings_json_extraction": "gpt-4o-mini",
-  "additional_context_determination": "deepseek-reasoner",
-  "comprehensive_vulnerability_analysis": "gpt-5-codex",
-  "final_vulnerability_extraction": "gpt-4o-mini",
-  "structured_json_extraction": "gpt-4.1",
-  "embedding_model": "text-embedding-3-large"
+  "openai_general": "openai/gpt-4-turbo",
+  "code_assumptions_analysis": "anthropic/claude-sonnet-4-20250514",
+  "vulnerability_detection": "anthropic/claude-sonnet-4-20250514",
+  "group_results_summarization": "anthropic/claude-sonnet-4-20250514",
+  "initial_vulnerability_validation": "openai/gpt-4-turbo",
+  "vulnerability_findings_json_extraction": "openai/gpt-4o-mini",
+  "additional_context_determination": "deepseek/deepseek-reasoner",
+  "comprehensive_vulnerability_analysis": "openai/gpt-4-turbo",
+  "final_vulnerability_extraction": "openai/gpt-4o-mini",
+  "structured_json_extraction": "openai/gpt-4-turbo",
+  "embedding_model": "openai/text-embedding-3-large"
 }
