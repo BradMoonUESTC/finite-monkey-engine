@@ -143,6 +143,23 @@ class EconomicImpactAnalyzer:
     # Default gas price in Gwei
     DEFAULT_GAS_PRICE = 30
 
+    # Profit extraction rates for different attack scenarios
+    # These are based on historical exploit data and economic modeling
+    PROFIT_EXTRACTION_RATES = {
+        # Governance attacks with timelock: ~30% extraction due to price risk,
+        # execution delays, and potential community response
+        "governance_with_timelock": 0.3,
+        # Governance attacks without timelock: ~80% extraction, limited only by
+        # slippage and detection risk
+        "governance_instant": 0.8,
+        # Flash loan attacks: ~50% due to MEV competition and gas costs
+        "flash_loan": 0.5,
+        # Reentrancy: Nearly full extraction possible
+        "reentrancy": 0.95,
+        # Price manipulation: Depends on liquidity depth
+        "price_manipulation": 0.7,
+    }
+
     def __init__(self, protocol_metrics: Optional[ProtocolMetrics] = None) -> None:
         """Initialize the economic impact analyzer.
 
@@ -243,11 +260,13 @@ class EconomicImpactAnalyzer:
         timelock = context.get("timelock_days", 2)
         if timelock > 0:
             # Timelock reduces profitability due to token price risk
-            estimated_profit = max_loss * 0.3 - flash_loan_fees - gas_cost
+            extraction_rate = self.PROFIT_EXTRACTION_RATES["governance_with_timelock"]
+            estimated_profit = max_loss * extraction_rate - flash_loan_fees - gas_cost
             attack_complexity = AttackComplexity.HIGH
             time_to_execute = f"{timelock} days"
         else:
-            estimated_profit = max_loss * 0.8 - flash_loan_fees - gas_cost
+            extraction_rate = self.PROFIT_EXTRACTION_RATES["governance_instant"]
+            estimated_profit = max_loss * extraction_rate - flash_loan_fees - gas_cost
             attack_complexity = AttackComplexity.MEDIUM
             time_to_execute = "instant"
 

@@ -93,6 +93,8 @@ class PerformanceStats:
     min_duration_ms: float = float("inf")
     uptime_seconds: float = 0.0
     last_scan_time: Optional[datetime] = None
+    # Running sum for more stable average calculation
+    _duration_sum_ms: float = 0.0
 
 
 class SecurityMonitoringEngine:
@@ -146,11 +148,11 @@ class SecurityMonitoringEngine:
         self.stats.total_findings += findings_count
         self.stats.last_scan_time = now
 
-        # Update duration stats
-        if self.stats.total_scans == 1:
-            self.stats.average_duration_ms = duration_ms
-        else:
-            self.stats.average_duration_ms = ((self.stats.average_duration_ms * (self.stats.total_scans - 1)) + duration_ms) / self.stats.total_scans
+        # Update duration stats using running sum for numerical stability
+        # This avoids floating point precision loss that can occur with
+        # the traditional running average formula over many iterations
+        self.stats._duration_sum_ms += duration_ms
+        self.stats.average_duration_ms = self.stats._duration_sum_ms / self.stats.total_scans
 
         self.stats.max_duration_ms = max(self.stats.max_duration_ms, duration_ms)
         self.stats.min_duration_ms = min(self.stats.min_duration_ms, duration_ms)

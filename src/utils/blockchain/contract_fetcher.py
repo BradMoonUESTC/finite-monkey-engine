@@ -5,6 +5,7 @@ from block explorers across multiple blockchain networks.
 """
 
 import json
+import logging
 import os
 import re
 from dataclasses import dataclass
@@ -16,9 +17,16 @@ from typing import List
 from typing import Optional
 from typing import Tuple
 
-from .chain_config import ChainConfig
-from .chain_config import get_chain_by_name
-from .chain_config import SUPPORTED_CHAINS
+try:
+    from .chain_config import ChainConfig
+    from .chain_config import get_chain_by_name
+    from .chain_config import SUPPORTED_CHAINS
+except ImportError:
+    from chain_config import ChainConfig
+    from chain_config import get_chain_by_name
+    from chain_config import SUPPORTED_CHAINS
+
+logger = logging.getLogger(__name__)
 
 
 class ProxyType(Enum):
@@ -361,8 +369,12 @@ class ContractFetcher:
                 if impl_address != "0x" + "0" * 40:
                     return impl_address
 
-        except Exception:
-            pass
+        except json.JSONDecodeError as e:
+            logger.debug(f"Failed to parse RPC response for {address}: {e}")
+        except (ConnectionError, TimeoutError) as e:
+            logger.debug(f"Network error reading storage slot for {address}: {e}")
+        except Exception as e:
+            logger.debug(f"Unexpected error reading implementation slot for {address}: {e}")
 
         return None
 

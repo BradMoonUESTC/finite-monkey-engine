@@ -421,10 +421,23 @@ class LanguageDetector:
         Returns:
             Appropriate detector instance
         """
-        from .solana_detector import SolanaAdvancedDetector
-        from .move_detector import MoveAdvancedDetector
-        from .cairo_detector import CairoAdvancedDetector
-        from validating.detectors import EconomicExploitDetector
+        try:
+            from .solana_detector import SolanaAdvancedDetector
+            from .move_detector import MoveAdvancedDetector
+            from .cairo_detector import CairoAdvancedDetector
+        except ImportError:
+            from solana_detector import SolanaAdvancedDetector
+            from move_detector import MoveAdvancedDetector
+            from cairo_detector import CairoAdvancedDetector
+        
+        try:
+            from validating.detectors import EconomicExploitDetector
+        except ImportError:
+            # When running standalone, import directly
+            import sys
+            import os
+            sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'detectors'))
+            from economic_exploits import EconomicExploitDetector
 
         if language_info.language == BlockchainLanguage.RUST:
             if language_info.platform == BlockchainPlatform.SOLANA:
