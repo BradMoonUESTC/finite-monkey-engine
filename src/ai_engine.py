@@ -3,7 +3,7 @@ from typing import List
 
 from planning.planning import Planning
 from reasoning import VulnerabilityScanner
-from validating import VulnerabilityChecker
+from validating.finding_checker import FindingVulnerabilityChecker
 
 
 class AiEngine(object):
@@ -35,7 +35,8 @@ class AiEngine(object):
         
         # 初始化扫描和检查模块
         self.vulnerability_scanner = VulnerabilityScanner(project_audit)
-        self.vulnerability_checker = VulnerabilityChecker(project_audit, lancedb, lance_table_name)
+        # 新版：验证只针对 project_finding
+        self.finding_checker = FindingVulnerabilityChecker(project_audit, getattr(taskmgr, 'engine', None))
 
     def do_planning(self):
         """执行项目分析计划"""
@@ -47,7 +48,7 @@ class AiEngine(object):
 
     def check_function_vul(self):
         """执行漏洞检查"""
-        return self.vulnerability_checker.check_function_vul(self.project_taskmgr)
+        return self.finding_checker.check_findings()
 
 
 if __name__ == "__main__":

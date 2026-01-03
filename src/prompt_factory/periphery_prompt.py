@@ -59,6 +59,32 @@ class PeripheryPrompt:
         11. **Must** output not more than 1000 words, must be concise and clear
         Ensure your response is as detailed as possible, and strictly adheres to all the above requirements
         """
+
+    def guidelines_json_only():
+        """
+        JSON-only 版本的 guidelines：
+        - 保留原来 11 条的约束意图
+        - 但强制把所有内容都“写进每个漏洞的 description 字段里”
+        - 严禁输出任何非 JSON 的额外文本
+        """
+        return """
+        # Guidelines (JSON-only, MUST follow) #
+        You MUST still output ONLY a single JSON object as required by the schema.
+        Do NOT output markdown, headings, bullet lists, or any extra text outside the JSON.
+        All guideline content MUST be reflected inside each vulnerability's "description" field.
+
+        1. The "description" MUST describe a practical, exploitable code vulnerability in detail.
+        2. Do NOT include technical errors, general security advice, or best-practice suggestions.
+        3. The "description" MUST be written as an audit finding narrative (but keep it plain text inside JSON).
+        4. The "description" MUST include step-by-step triggering/exploitation instructions.
+        5. Keep the "description" clear and concise; avoid vague terms; keep it within the prompt's length constraints.
+        6. Assume atomic execution (no cross-transaction interruption/manipulation) and positive numbers unless code shows otherwise.
+        7. Do NOT say "attacker uses some way"; provide concrete, reproducible steps and parameters.
+        8. Do NOT rely on extreme corner cases; the vulnerability must be practical and exploitable.
+        9. Assume attacker is NOT the contract owner and has no privileged admin roles unless the code explicitly allows it.
+        10. Write for auditors: actionable, understandable, evidence-driven.
+        11. Keep it concise while preserving exploitability and impact details.
+        """
     def impact_list():
         return """
         The vulnerability must satisfy one of the following conditions:

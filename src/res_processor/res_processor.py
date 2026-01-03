@@ -763,44 +763,46 @@ class ResProcessor:
     def perform_post_reasoning_deduplication(project_id, db_engine, logger):
         """在reasoning完成后，validation开始前进行去重处理"""
         from logging_config import log_step, log_section_start, log_section_end, log_error, log_warning, log_success, log_data_info
-        from dao import ProjectTaskMgr
+        from dao import ProjectFindingMgr
         
         log_step(logger, "开始获取reasoning后的漏洞数据")
         
         try:
-            # 获取reasoning后的所有漏洞数据
-            project_taskmgr = ProjectTaskMgr(project_id, db_engine)
-            entities = project_taskmgr.query_task_by_project_id(project_id)
-            
-            # 调试信息：统计所有实体
+            # 新版：从 finding 表获取 reasoning 拆分后的单漏洞条目
+            finding_mgr = ProjectFindingMgr(project_id, db_engine)
+            entities = finding_mgr.query_findings_by_project_id(project_id)
+
             total_entities = len(entities)
-            log_data_info(logger, "总任务实体数量", total_entities)
-            print(f"🔍 调试信息 - 总任务实体数量: {total_entities}")
-            
-            # 筛选有漏洞结果的数据
+            log_data_info(logger, "总finding数量", total_entities)
+            print(f"🔍 调试信息 - 总finding数量: {total_entities}")
+
+            # 筛选有漏洞结果的数据（finding_json 非空，且有业务流程代码）
             vulnerability_data = []
             for entity in entities:
-                # 调试每个实体的详细信息
-                has_result = bool(entity.result)
-                has_business_code = hasattr(entity, 'business_flow_code') and entity.business_flow_code and len(entity.business_flow_code) > 0
-                
+                has_result = bool(getattr(entity, 'finding_json', '') or '')
+                has_business_code = bool(getattr(entity, 'task_business_flow_code', '') or '')
+
+                # 跳过已逻辑删除的 finding
+                if (getattr(entity, 'dedup_status', '') or '') == 'delete':
+                    continue
+
                 if has_result and has_business_code:
                     vulnerability_data.append({
-                        '漏洞结果': entity.result,
+                        '漏洞结果': entity.finding_json,
                         'ID': entity.id,
                         '项目名称': entity.project_id,
-                        '合同编号': entity.contract_code,
+                        '合同编号': entity.task_contract_code,
                         'UUID': entity.uuid,
-                        '函数名称': entity.name,
-                        '函数代码': entity.content,
+                        '函数名称': entity.task_name,
+                        '函数代码': entity.task_content,
                         '规则类型': entity.rule_key,
-                        '开始行': entity.start_line,
-                        '结束行': entity.end_line,
-                        '相对路径': entity.relative_file_path,
-                        '绝对路径': entity.absolute_file_path,
-                        '业务流程代码': entity.business_flow_code,
-                        '扫描记录': entity.scan_record,
-                        '推荐': entity.recommendation
+                        '开始行': entity.task_start_line,
+                        '结束行': entity.task_end_line,
+                        '相对路径': entity.task_relative_file_path,
+                        '绝对路径': entity.task_absolute_file_path,
+                        '业务流程代码': entity.task_business_flow_code,
+                        '扫描记录': entity.validation_record,
+                        '推荐': ''
                     })
             
             filtered_count = len(vulnerability_data)
@@ -813,18 +815,7 @@ class ResProcessor:
             log_data_info(logger, "去重前漏洞数量", original_count)
             log_data_info(logger, "去重前漏洞ID", f"{', '.join(sorted(original_ids))}")
             
-            # 检查是否存在已经被逻辑删除的记录（short_result='delete'）
-            all_entities = project_taskmgr.query_task_by_project_id(project_id)
-            deleted_tasks = [entity for entity in all_entities if getattr(entity, 'short_result', '') == 'delete']
-            
-            if deleted_tasks:
-                deleted_count = len(deleted_tasks)
-                deleted_ids = [str(task.id) for task in deleted_tasks]
-                print(f"\n⚠️  检测到已有 {deleted_count} 个逻辑删除的记录，跳过ResProcessor去重处理")
-                print(f"已删除的ID: {', '.join(deleted_ids)}")
-                log_warning(logger, f"跳过ResProcessor去重处理 - 检测到{deleted_count}个已逻辑删除的记录")
-                log_warning(logger, f"已删除的ID: {', '.join(deleted_ids)}")
-                return
+            # 新版：finding 本身就带 dedup_status；若已存在 delete，仍可继续去重（幂等地覆盖 delete 标记）
             
             # 使用ResProcessor进行去重
             log_step(logger, "开始ResProcessor去重处理")
@@ -854,8 +845,8 @@ class ResProcessor:
                 for i, removed_id in enumerate(sorted(removed_ids), 1):
                     print(f"  {i:2d}. ID: {removed_id}")
                 
-                # 逻辑删除被去重的记录 - 将short_result设置为"delete"
-                print(f"\n🗑️  开始逻辑删除被去重的记录(设置short_result='delete')...")
+                # 逻辑删除被去重的 finding - 将 dedup_status 设置为 "delete"
+                print(f"\n🗑️  开始逻辑删除被去重的记录(设置dedup_status='delete')...")
                 marked_count = 0
                 failed_marks = []
                 
@@ -863,9 +854,9 @@ class ResProcessor:
                     try:
                         # 转换为整数类型的ID
                         id_int = int(removed_id)
-                        project_taskmgr.update_short_result(id_int, "delete")
+                        finding_mgr.update_dedup_status(id_int, "delete")
                         marked_count += 1
-                        print(f"    ✅ 标记成功: ID {removed_id} -> short_result='delete'")
+                        print(f"    ✅ 标记成功: ID {removed_id} -> dedup_status='delete'")
                     except Exception as e:
                         failed_marks.append(removed_id)
                         print(f"    ❌ 标记出错: ID {removed_id}, 错误: {str(e)}")
@@ -887,7 +878,7 @@ class ResProcessor:
             log_success(logger, "去重处理完成", f"原始: {original_count} -> 去重后: {deduplicated_count}, 逻辑删除: {removed_count}")
             if removed_ids:
                 logger.info(f"被去重的漏洞ID: {', '.join(sorted(removed_ids))}")
-                logger.info(f"逻辑删除了 {marked_count} 条被去重的记录(设置short_result='delete')")
+                logger.info(f"逻辑删除了 {marked_count} 条被去重的记录(设置dedup_status='delete')")
             
         except Exception as e:
             log_error(logger, "去重处理失败", e)
@@ -897,10 +888,10 @@ class ResProcessor:
     @staticmethod
     def generate_excel(output_path, project_id, db_engine):
         """生成Excel报告"""
-        from dao import ProjectTaskMgr
+        from dao import ProjectFindingMgr
         
-        project_taskmgr = ProjectTaskMgr(project_id, db_engine)
-        entities = project_taskmgr.query_task_by_project_id(project_id)
+        finding_mgr = ProjectFindingMgr(project_id, db_engine)
+        entities = finding_mgr.query_findings_by_project_id(project_id)
         
         # 创建一个空的DataFrame来存储所有实体的数据
         data = []
@@ -908,31 +899,31 @@ class ResProcessor:
         deleted_entities = 0
         
         for entity in entities:
-            # 跳过已逻辑删除的记录
-            if getattr(entity, 'short_result', '') == 'delete':
+            # 跳过已逻辑删除的 finding
+            if getattr(entity, 'dedup_status', '') == 'delete':
                 deleted_entities += 1
                 continue
                 
-            # 优先使用validation后的short_result，如果没有则使用原始result
-            short_result = entity.short_result
-            result = entity.result
-            if short_result and ("yes" in str(short_result).lower()) and len(entity.business_flow_code)>0:
+            # 新版：只导出 validation_status == yes 的 finding
+            validation_status = getattr(entity, 'validation_status', '') or ''
+            result = getattr(entity, 'finding_json', '') or ''
+            if validation_status and ("yes" in str(validation_status).lower()) and len(getattr(entity, 'task_business_flow_code', '') or '') > 0:
                 data.append({
                     '漏洞结果': result,
                     'ID': entity.id,
                     '项目名称': entity.project_id,
-                    '合同编号': entity.contract_code,
+                    '合同编号': entity.task_contract_code,
                     'UUID': entity.uuid,  # 使用uuid而不是key
-                    '函数名称': entity.name,
-                    '函数代码': entity.content,
-                    '规则类型': entity.rule_key,  # 新增rule_key
-                    '开始行': entity.start_line,
-                    '结束行': entity.end_line,
-                    '相对路径': entity.relative_file_path,
-                    '绝对路径': entity.absolute_file_path,
-                    '业务流程代码': entity.business_flow_code,
-                    '扫描记录': entity.scan_record,  # 使用新的scan_record字段
-                    '推荐': entity.recommendation
+                    '函数名称': entity.task_name,
+                    '函数代码': entity.task_content,
+                    '规则类型': entity.rule_key,
+                    '开始行': entity.task_start_line,
+                    '结束行': entity.task_end_line,
+                    '相对路径': entity.task_relative_file_path,
+                    '绝对路径': entity.task_absolute_file_path,
+                    '业务流程代码': entity.task_business_flow_code,
+                    '扫描记录': entity.validation_record,
+                    '推荐': ''
                 })
         
         # 打印数据统计信息

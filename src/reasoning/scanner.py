@@ -8,10 +8,13 @@ from prompt_factory.vul_prompt_common import VulPromptCommon
 from prompt_factory.periphery_prompt import PeripheryPrompt
 from prompt_factory.core_prompt import CorePrompt
 from prompt_factory.assumption_validation_prompt import AssumptionValidationPrompt
+from prompt_factory.vul_reasoning_json_prompt import VulReasoningJsonPrompt
 from prompt_factory.prompt_assembler import PromptAssembler
 from openai_api.openai import detect_vulnerabilities, analyze_code_assumptions
 from logging_config import get_logger
 import json
+from dao.entity import Project_Finding
+from dao.finding_mgr import ProjectFindingMgr
 
 
 class VulnerabilityScanner:
@@ -192,7 +195,8 @@ class VulnerabilityScanner:
                     self.logger.debug(f"任务 {task.name} 使用 {len(self.fixed_invariants)} 个固定不变量")
             
             # 🎯 新增：基于group查询同组已有结果并生成总结（根据环境变量开关控制）
-            summary_in_reasoning = os.getenv("SUMMARY_IN_REASONING", "True").lower() == "true"
+            # 你最新口径：不需要在意历史数据，默认关闭同组总结（如需开启可设 SUMMARY_IN_REASONING=True）
+            summary_in_reasoning = os.getenv("SUMMARY_IN_REASONING", "False").lower() == "true"
             group_summary = ""
             if summary_in_reasoning:
                 group_summary = self._get_group_results_summary(task, task_manager)
@@ -218,6 +222,7 @@ The following is the project's design document, which provides important context
                 assembled_prompt = design_doc_prefix + assembled_prompt
             
             # 🎯 如果启用了同组总结且有总结内容，将其添加到prompt前面（在设计文档之后）
+            # 默认关闭：SUMMARY_IN_REASONING=False
             if summary_in_reasoning and group_summary:
                 from prompt_factory.group_summary_prompt import GroupSummaryPrompt
                 enhanced_prefix = GroupSummaryPrompt.get_enhanced_reasoning_prompt_prefix()
@@ -231,6 +236,9 @@ The following is the project's design document, which provides important context
                 task_manager.update_result(task.id, result)
             else:
                 self.logger.warning(f"任务 {task.name} 没有ID，无法保存结果")
+
+            # 🎯 新增：将多漏洞 JSON 拆分写入 project_finding（幂等：按 task_id 删除旧 findings 再重建）
+            self._split_and_persist_findings(task, task_manager, result)
             
             print(f"✅ 任务 {task.name} 扫描完成，使用rule: {rule_key} ({len(rule_list)}个检查项)")
             return result
@@ -240,9 +248,20 @@ The following is the project's design document, which provides important context
 
     def _process_single_task_standard(self, task, task_manager, filter_func, is_gpt4):
         """标准模式处理单个任务"""
-        # 检查任务是否已经扫描过
-        if ScanUtils.is_task_already_scanned(task):
-            self.logger.info(f"任务 {task.name} 已经扫描过，跳过")
+        # 新版断点续跑逻辑：
+        # - result 非空 & short_result == split_done: 跳过扫描与拆分
+        # - result 非空 & short_result != split_done: 跳过扫描，但需要补拆分写入 finding
+        # - result 为空: 需要扫描（scan 时会自动拆分）
+        short_result = getattr(task, 'short_result', '') or ''
+        has_result = bool(getattr(task, 'result', '') or '')
+
+        if has_result and short_result == "split_done":
+            self.logger.info(f"任务 {task.name} 已扫描且已拆分(split_done)，跳过")
+            return
+
+        if has_result and short_result != "split_done":
+            self.logger.info(f"任务 {task.name} 已扫描但未拆分，执行补拆分写入 finding")
+            self._split_and_persist_findings(task, task_manager, task.result)
             return
         
         # 检查是否应该扫描此任务
@@ -252,6 +271,85 @@ The following is the project's design document, which provides important context
         
         # 执行漏洞扫描
         self._execute_vulnerability_scan(task, task_manager, is_gpt4)
+
+    def _split_and_persist_findings(self, task, task_manager, result_json_text: str):
+        """将 task.result(多漏洞 JSON) 拆分写入 project_finding，并将 task.short_result 标记为 split_done（幂等方案 A）。"""
+        try:
+            if not getattr(task, 'id', None):
+                return
+
+            # 如果已经标记 split_done，则跳过
+            if (getattr(task, 'short_result', '') or '') == "split_done":
+                return
+
+            # 解析 JSON
+            data = json.loads(result_json_text) if result_json_text else {}
+            vulns = data.get("vulnerabilities", []) if isinstance(data, dict) else []
+
+            # 无漏洞也视为拆分完成（避免反复重试）
+            engine = getattr(task_manager, 'engine', None) or getattr(getattr(task_manager, 'Session', None), 'kw', {}).get('bind', None)
+            if engine is None:
+                self.logger.warning("无法获取 DB engine，跳过 findings 写入")
+                return
+            finding_mgr = ProjectFindingMgr(task_manager.project_id, engine)
+
+            # 幂等：先删后建
+            finding_mgr.delete_findings_by_task_id(task.id)
+
+            findings = []
+            for vuln in (vulns or []):
+                # 兼容两种形式：
+                # 1) vuln 是字符串 -> 转成 {"description": "..."}
+                # 2) vuln 是对象 -> 若无 description 则兜底塞入字符串化内容
+                if isinstance(vuln, str):
+                    vuln_obj = {"description": vuln}
+                elif isinstance(vuln, dict):
+                    if "description" not in vuln:
+                        vuln_obj = {"description": json.dumps(vuln, ensure_ascii=False)}
+                    else:
+                        vuln_obj = vuln
+                else:
+                    vuln_obj = {"description": str(vuln)}
+
+                single_json = {
+                    "schema_version": data.get("schema_version", "1.0") if isinstance(data, dict) else "1.0",
+                    "vulnerabilities": [vuln_obj],
+                }
+                findings.append(
+                    Project_Finding(
+                        project_id=task_manager.project_id,
+                        task_id=task.id,
+                        task_uuid=getattr(task, 'uuid', ''),
+                        rule_key=getattr(task, 'rule_key', ''),
+                        finding_json=json.dumps(single_json, ensure_ascii=False),
+                        task_name=getattr(task, 'name', ''),
+                        task_content=getattr(task, 'content', ''),
+                        task_business_flow_code=getattr(task, 'business_flow_code', ''),
+                        task_contract_code=getattr(task, 'contract_code', ''),
+                        task_start_line=getattr(task, 'start_line', ''),
+                        task_end_line=getattr(task, 'end_line', ''),
+                        task_relative_file_path=getattr(task, 'relative_file_path', ''),
+                        task_absolute_file_path=getattr(task, 'absolute_file_path', ''),
+                        task_rule=getattr(task, 'rule', ''),
+                        task_group=getattr(task, 'group', ''),
+                        dedup_status='kept',
+                        validation_status='pending',
+                        validation_record='',
+                    )
+                )
+
+            if findings:
+                finding_mgr.add_findings(findings, commit=True)
+
+            # 标记拆分完成
+            task_manager.update_short_result(task.id, "split_done")
+        except Exception as e:
+            self.logger.warning(f"拆分写入 finding 失败: {e}")
+            try:
+                if getattr(task, 'id', None):
+                    task_manager.update_short_result(task.id, "split_failed")
+            except Exception:
+                pass
     
     def _get_group_results_summary(self, task, task_manager) -> str:
         """获取同组任务的结果总结"""
@@ -304,17 +402,15 @@ The following is the project's design document, which provides important context
         
         # 原有的漏洞扫描逻辑（非assumption类型）
         else:
-            rule_content = f"### {rule_key} Vulnerability Checks:\n"
-            for i, rule in enumerate(rule_list, 1):
-                rule_content += f"{i}. {rule}\n"
-        
-        # 组装完整prompt
-        ret_prompt = code + "\n" \
-                    + PeripheryPrompt.role_set_move_common() + "\n" \
-                    + PeripheryPrompt.task_set_blockchain_common() + "\n" \
-                    + CorePrompt.core_prompt_assembled() + "\n" \
-                    + rule_content + "\n" \
-                    + PeripheryPrompt.guidelines() + "\n" \
-                    + PeripheryPrompt.jailbreak_prompt()
-        
-        return ret_prompt 
+            # 关键：不要再拼接 PeripheryPrompt.guidelines/jailbreak_prompt
+            # 这些通用尾巴会引入非 JSON 的输出格式要求，导致模型倾向只输出 1 条甚至输出异常。
+            return (
+                VulReasoningJsonPrompt.build_prompt(
+                code=code,
+                rule_key=rule_key,
+                rule_list=rule_list,
+                group_summary="",  # 当前默认不使用历史
+                )
+                + "\n"
+                + PeripheryPrompt.guidelines_json_only()
+            )

@@ -1,8 +1,8 @@
 {
   "openai_general": "gpt-5.1",
   "code_assumptions_analysis": "gpt-5.1",
-  "vulnerability_detection": "gpt-5.1",
-  "group_results_summarization": "gpt-5.1",
+  "vulnerability_detection": "gpt-5.2",
+  "group_results_summarization": "gpt-5.2",
   "initial_vulnerability_validation": "gpt-5.1",
   "vulnerability_findings_json_extraction": "gpt-5.1-codex-mini",
   "additional_context_determination": "gpt-5.1",

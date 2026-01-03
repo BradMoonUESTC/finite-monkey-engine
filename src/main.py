@@ -16,7 +16,9 @@ from openpyxl.utils.dataframe import dataframe_to_rows
 from res_processor.res_processor import ResProcessor
 
 import dotenv
+# 优先加载默认 .env（如果存在），并额外加载 src/.env（你提供的环境文件位置）
 dotenv.load_dotenv()
+dotenv.load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), ".env"), override=False)
 
 # 添加日志系统
 from logging_config import setup_logging, get_logger, log_section_start, log_section_end, log_step, log_error, log_warning, log_success, log_data_info
@@ -129,7 +131,7 @@ def scan_project(project, db_engine):
     return lancedb_table, lancedb_table_name, project_audit
 
 def check_function_vul(engine, lancedb, lance_table_name, project_audit):
-    """执行漏洞检查，直接使用project_audit数据"""
+    """执行漏洞检查（新版：只验证 project_finding 表），直接使用project_audit数据"""
     logger = get_logger("check_function_vul")
     check_start_time = time.time()
     
@@ -139,16 +141,16 @@ def check_function_vul(engine, lancedb, lance_table_name, project_audit):
     project_taskmgr = ProjectTaskMgr(project_audit.project_id, engine)
     log_success(logger, "项目任务管理器创建完成")
     
-    # 直接使用project_audit创建漏洞检查器
-    log_step(logger, "初始化漏洞检查器")
-    from validating import VulnerabilityChecker
-    checker = VulnerabilityChecker(project_audit, lancedb, lance_table_name)
-    log_success(logger, "漏洞检查器初始化完成")
+    # 新版：只对 finding 表执行验证
+    log_step(logger, "初始化Finding漏洞检查器")
+    from validating.finding_checker import FindingVulnerabilityChecker
+    checker = FindingVulnerabilityChecker(project_audit, engine)
+    log_success(logger, "Finding漏洞检查器初始化完成")
     
     # 执行漏洞检查
     log_step(logger, "执行漏洞验证")
     validation_start = time.time()
-    checker.check_function_vul(project_taskmgr)
+    checker.check_findings()
     validation_duration = time.time() - validation_start
     log_success(logger, "漏洞验证完成", f"耗时: {validation_duration:.2f}秒")
     
@@ -177,7 +179,7 @@ if __name__ == '__main__':
         
         # 初始化数据库
         log_step(main_logger, "初始化数据库连接")
-        db_url_from = os.environ.get("DATABASE_URL")
+        db_url_from = os.environ.get("DATABASE_URL") or "postgresql://postgres:1234@127.0.0.1:5432/postgres"
         main_logger.info(f"数据库URL: {db_url_from}")
         engine = create_engine(db_url_from)
         log_success(main_logger, "数据库连接创建完成")
@@ -203,7 +205,7 @@ if __name__ == '__main__':
         
         # 初始化数据库
         log_step(main_logger, "初始化数据库连接")
-        db_url_from = os.environ.get("DATABASE_URL")
+        db_url_from = os.environ.get("DATABASE_URL") or "postgresql://postgres:1234@127.0.0.1:5432/postgres"
         main_logger.info(f"数据库URL: {db_url_from}")
         engine = create_engine(db_url_from)
         log_success(main_logger, "数据库连接创建完成")
@@ -216,7 +218,7 @@ if __name__ == '__main__':
         log_success(main_logger, "数据集加载完成", f"找到 {len(projects)} 个项目")
  
         # 设置项目参数
-        project_id = 'moonlith3'  # 使用存在的项目ID
+        project_id = 'dca5555'  # 使用存在的项目ID
         project_path = ''
         main_logger.info(f"目标项目ID: {project_id}")
         project = Project(project_id, projects[project_id])

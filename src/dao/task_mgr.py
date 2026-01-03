@@ -9,6 +9,7 @@ class ProjectTaskMgr(object):
 
     def __init__(self, project_id, engine) -> None:
         self.project_id = project_id
+        self.engine = engine
         Project_Task.__table__.create(engine, checkfirst = True)
         self.Session = sessionmaker(bind=engine)
 

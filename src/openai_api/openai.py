@@ -152,9 +152,15 @@ def detect_vulnerabilities(prompt):
         'Authorization': f'Bearer {api_key}'
     }
 
+    # 强制 JSON 输出（reasoning 新版要求固定 JSON）
     data = {
         'model': model,
+        'response_format': { 'type': 'json_object' },
         'messages': [
+            {
+                'role': 'system',
+                'content': 'You are a helpful assistant designed to output JSON.'
+            },
             {
                 'role': 'user',
                 'content': prompt
