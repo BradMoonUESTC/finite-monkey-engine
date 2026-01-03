@@ -2,6 +2,20 @@
 
 **An AI-Powered Code Security Analysis Platform**
 
+## Branches: `main` vs `forward` (important)
+
+- **`main`**: Current stable pipeline centered on `project_task` (task + results stored together).
+- **`forward`**: Experimental refactor that separates **task** vs **finding**:
+  - `project_task.result` stores **multi-vulnerability aggregated JSON**
+  - `project_finding` stores **single-vulnerability findings** (dedup/validation/export all work on findings)
+
+See `forward_diff_and_ddl.md` for a concise design diff and the PostgreSQL DDL of both tables.
+
+## Next steps (planned)
+
+- **Replace context logic with Codex**: fully rework the current context-building pipeline (what code is collected, how it’s summarized, and how it’s fed into prompts).
+- **RAG redesign**: redesign retrieval granularity, indexing strategy, and how retrieved context is merged into reasoning/validation.
+
 ## 🚀 v2.0 Major Upgrades
 
 **Finite Monkey Engine v2.0** brings significant architectural upgrades and feature enhancements:

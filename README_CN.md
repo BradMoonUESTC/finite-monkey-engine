@@ -2,6 +2,20 @@
 
 **基于AI的智能代码安全分析平台**
 
+## 分支说明：`main` vs `forward`（必读）
+
+- **`main`**：当前稳定版本，整体流程以 `project_task` 为中心（任务与结果存储在同一张表中）。
+- **`forward`**：实验性重构版本，将 **任务(task)** 与 **漏洞条目(finding)** 解耦：
+  - `project_task.result` 保存 **多漏洞聚合 JSON**
+  - 新表 `project_finding` 保存 **单漏洞条目**（后续去重/验证/导出都基于 finding 表）
+
+详细差异与两张表的 PostgreSQL DDL 见：`forward_diff_and_ddl.md`。
+
+## 下一步计划（planned）
+
+- **用 Codex 重写上下文逻辑**：完整替换当前上下文构建链路（收集哪些代码、如何摘要、如何喂给 reasoning/validation）。
+- **RAG 相关设计重做**：重新设计检索粒度、索引策略，以及检索结果如何合并进 reasoning/validation。
+
 ## 🚀 v2.0 版本升级亮点
 
 **Finite Monkey Engine v2.0** 带来了重大架构升级和功能增强：
