@@ -1,6 +1,15 @@
-# Finite Monkey Engine v2.0
+# Finite Monkey Engine v3.0
 
-**An AI-Powered Code Security Analysis Platform**
+Security analysis pipeline for code auditing: **Planning → Reasoning → Validation**.  
+Results are persisted to PostgreSQL and can be exported as reports.
+
+## v3.0 Updates (Concise)
+
+- **Planning**: removes RAG / chunks / call graph / call tree. Keeps tree-sitter function parsing and uses Codex CLI to extract business flows (Gi/Fi). Tasks persisted as **Fi × checklist (rule_key)**.
+- **Reasoning**: switches the main scan execution to **Codex CLI** (input: `business_flow_code + prompt`). Output remains the original **multi-vulnerability JSON**, then split into `project_finding` (unchanged downstream logic).
+- **Validation**: Codex-based confirmation for `project_finding` and write-back to `validation_status` / `validation_record`.
+- **Workspace restriction**: Codex always runs with `--cd <project_root>` derived from `src/dataset/agent-v1-c4/datasets.json[project_id].path`.
+- **Design docs**: moved into `docs/`.
 
 ## 🚀 v2.0 Major Upgrades
 
@@ -174,7 +183,13 @@ python src/main.py
 # Database Configuration (Required)
 DATABASE_URL=postgresql://postgres:1234@127.0.0.1:5432/postgres
 
-# AI Model Configuration (Required)
+# Codex (Required for v3.0 planning/reasoning/validation)
+CODEX_MODEL=gpt-5.2
+CODEX_SANDBOX=read-only
+CODEX_ASK_FOR_APPROVAL=never
+CODEX_TIMEOUT_SEC=1800
+
+# Legacy model config (still used by some auxiliary flows)
 OPENAI_API_BASE="api.openai-proxy.org"  # LLM proxy platform
 OPENAI_API_KEY="sk-xxxxxx"  # API key
 
@@ -195,6 +210,10 @@ IGNORE_FOLDERS=node_modules,build,dist,test,tests,.git  # Folders to ignore
 # Checklist Configuration
 CHECKLIST_PATH=src/knowledges/checklist.xlsx  # Path to checklist file
 CHECKLIST_SHEET=Sheet1                  # Checklist worksheet name
+
+# Run control (v3.0)
+CMD=detect_vul                 # detect_vul / planning_only
+STOP_AFTER_PLANNING=false      # true: stop after planning (before reasoning)
 ```
 
 > 📝 **Complete Configuration**: See `env.example` file for all configurable options and detailed descriptions

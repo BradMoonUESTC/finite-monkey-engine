@@ -1,6 +1,14 @@
-# Finite Monkey Engine v2.0
+# Finite Monkey Engine v3.0
 
-**基于AI的智能代码安全分析平台**
+面向区块链代码审计的自动化扫描流水线：**Planning → Reasoning → Validation**（三段均可由 Codex CLI 驱动），结果落库到 PostgreSQL，并导出报告。
+
+## v3.0 更新要点（简洁版）
+
+- **Planning**：不再依赖 RAG / chunks / call graph / call tree。只保留 tree-sitter 的函数解析结果，并通过 Codex 抽取业务流（Gi/Fi）。最终落库任务为 **Fi × checklist(rule_key)**。
+- **Reasoning**：扫描阶段改为用 **Codex CLI** 执行（把 `business_flow_code + prompt` 输入进去），输出保持原有 **多漏洞 JSON**，并沿用原逻辑拆分写入 `project_finding`。
+- **Validation**：对 `project_finding` 进行 Codex 确认（误报/真实漏洞/成本/影响等），写回 `validation_status` 与 `validation_record`。
+- **工作目录约束**：Codex 执行严格 `--cd <project_root>`，其中 `project_root` 必须由 `src/dataset/agent-v1-c4/datasets.json[project_id].path` 决定（位于 `src/dataset/agent-v1-c4` 下）。
+- **方案文档**：已整理到 `docs/`（planning/coverage/validation/reasoning 的设计说明）。
 
 ## 🚀 v2.0 版本升级亮点
 
@@ -110,7 +118,13 @@ finite-monkey-engine/
 # 数据库配置（必需）
 DATABASE_URL=postgresql://postgres:1234@127.0.0.1:5432/postgres
 
-# AI模型配置（必需）
+# Codex（v3.0 reasoning/planning/validation 使用，必需）
+CODEX_MODEL=gpt-5.2
+CODEX_SANDBOX=read-only
+CODEX_ASK_FOR_APPROVAL=never
+CODEX_TIMEOUT_SEC=1800
+
+# 兼容旧模型配置（仍可能用于某些辅助流程）
 OPENAI_API_BASE="api.openai-proxy.org"  # LLM代理平台
 OPENAI_API_KEY="sk-xxxxxx"  # API密钥
 
@@ -131,6 +145,10 @@ IGNORE_FOLDERS=node_modules,build,dist,test,tests,.git  # 忽略的文件夹
 # 检查清单配置
 CHECKLIST_PATH=src/knowledges/checklist.xlsx  # 检查清单文件路径
 CHECKLIST_SHEET=Sheet1                  # 检查清单工作表名称
+
+# 运行控制（v3.0 常用）
+CMD=detect_vul                 # detect_vul / planning_only
+STOP_AFTER_PLANNING=false      # true 时：main.py 正常流程跑到 planning 后在 reasoning 前停止
 ```
 
 > 📝 **完整配置**: 查看 `env.example` 文件了解所有可配置选项和详细说明
