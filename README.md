@@ -3,7 +3,7 @@
 Security analysis pipeline for code auditing: **Planning → Reasoning → Validation**.  
 Results are persisted to PostgreSQL and can be exported as reports.
 
-## v3.0 Updates (Concise)
+## v3.0 Updates
 
 - **Planning**: removes RAG / chunks / call graph / call tree. Keeps tree-sitter function parsing and uses Codex CLI to extract business flows (Gi/Fi). Tasks persisted as **Fi × checklist (rule_key)**.
 - **Reasoning**: switches the main scan execution to **Codex CLI** (input: `business_flow_code + prompt`). Output remains the original **multi-vulnerability JSON**, then split into `project_finding` (unchanged downstream logic).

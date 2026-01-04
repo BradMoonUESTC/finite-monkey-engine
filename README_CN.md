@@ -2,7 +2,7 @@
 
 面向区块链代码审计的自动化扫描流水线：**Planning → Reasoning → Validation**（三段均可由 Codex CLI 驱动），结果落库到 PostgreSQL，并导出报告。
 
-## v3.0 更新要点（简洁版）
+## v3.0 更新要点
 
 - **Planning**：不再依赖 RAG / chunks / call graph / call tree。只保留 tree-sitter 的函数解析结果，并通过 Codex 抽取业务流（Gi/Fi）。最终落库任务为 **Fi × checklist(rule_key)**。
 - **Reasoning**：扫描阶段改为用 **Codex CLI** 执行（把 `business_flow_code + prompt` 输入进去），输出保持原有 **多漏洞 JSON**，并沿用原逻辑拆分写入 `project_finding`。
