@@ -100,14 +100,14 @@ class ProjectFindingMgr(object):
         ).all()
 
     def get_findings_for_export(self):
-        """导出：未被去重删除，且 validation_status == yes。"""
+        """导出：仅导出明确为漏洞的 finding（validation_status == 'vulnerability'）。"""
         return self._operate_in_session(self._get_findings_for_export)
 
     def _get_findings_for_export(self, session):
         return session.query(Project_Finding).filter(
             Project_Finding.project_id == self.project_id,
             (Project_Finding.dedup_status.is_(None)) | (Project_Finding.dedup_status != 'delete'),
-            Project_Finding.validation_status == 'yes'
+            Project_Finding.validation_status == "vulnerability"
         ).all()
 
 

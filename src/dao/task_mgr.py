@@ -130,6 +130,14 @@ class ProjectTaskMgr(object):
         except Exception as e:
             session.rollback()
             raise e
+
+    def delete_tasks_by_project_id(self, project_id: str):
+        """按 project_id 删除所有任务（用于 planning 重建任务集）。"""
+        return self._operate_in_session(self._delete_tasks_by_project_id, project_id)
+
+    def _delete_tasks_by_project_id(self, session, project_id: str):
+        session.query(Project_Task).filter_by(project_id=project_id).delete()
+        session.commit()
     # update_title方法已删除，因为title字段不再存在
         
     def import_file(self, filename):
@@ -163,6 +171,14 @@ class ProjectTaskMgr(object):
     def merge_results(self, function_rules):
         # merge_results方法需要根据新的字段结构调整
         rule_map = {}
+        for rule in function_rules:
+            keys = [rule.get('name', ''), rule.get('content', ''), rule.get('rule_key', '')]
+            key = "/".join(keys)
+            rule_map[key] = rule
+
+        return rule_map.values() 
+
+
         for rule in function_rules:
             keys = [rule.get('name', ''), rule.get('content', ''), rule.get('rule_key', '')]
             key = "/".join(keys)

@@ -20,14 +20,10 @@ import tree_sitter_cpp
 import tree_sitter_move
 import tree_sitter_go
 
-# 导入文档分块器
-try:
-    from .document_chunker import chunk_project_files
-    from .chunk_config import ChunkConfigManager
-except ImportError:
-    # 如果相对导入失败，尝试直接导入
-    from document_chunker import chunk_project_files
-    from chunk_config import ChunkConfigManager
+"""
+注意：新版 planning 不再使用 RAG/文档分块能力，因此 project_parser 只负责提取函数清单。
+文档分块（chunks）相关逻辑在此处被移除，parse_project 仍保留第三个返回值以兼容旧接口，但固定返回空列表。
+"""
 
 # 创建语言对象
 LANGUAGES = {
@@ -123,6 +119,13 @@ def _extract_functions_from_node(node: Node, source_code: bytes, language: str, 
     functions = []
     
     def traverse_node(node, contract_name=""):
+        # Solidity: 识别 contract/interface/library 名称，用于函数名前缀
+        if language == "solidity":
+            if node.type in ("contract_declaration", "interface_declaration", "library_declaration"):
+                name_node = node.child_by_field_name("name")
+                if name_node is not None:
+                    contract_name = _get_node_text(name_node, source_code).strip() or contract_name
+
         if node.type == 'function_definition' and language == 'solidity':
             # Solidity函数定义
             func_info = _parse_solidity_function(node, source_code, contract_name, file_path)
@@ -152,10 +155,6 @@ def _extract_functions_from_node(node: Node, source_code: bytes, language: str, 
             func_info = _parse_go_function(node, source_code, file_path)
             if func_info:
                 functions.append(func_info)
-        
-        elif node.type == 'contract_declaration' and language == 'solidity':
-            # Solidity合约声明
-            contract_name = _get_node_text(node.child_by_field_name('name'), source_code)
         
         # 递归遍历子节点
         for child in node.children:
@@ -678,10 +677,10 @@ def _parse_go_function(node: Node, source_code: bytes, file_path: str) -> Option
 def parse_project(project_path, project_filter=None):
     """
     使用tree-sitter解析项目
-    保持与原始parse_project函数相同的接口，并添加文档分块功能
+    保持与原始parse_project函数相同的接口（第三个返回值保持为 chunks，但新版固定为空列表）
     """
     if project_filter is None:
-        project_filter = TreeSitterProjectFilter([], [])
+        project_filter = TreeSitterProjectFilter()
 
     ignore_folders = set()
     if os.environ.get('IGNORE_FOLDERS'):
@@ -689,8 +688,6 @@ def parse_project(project_path, project_filter=None):
     ignore_folders.add('.git')
 
     all_results = []
-    all_file_paths = []  # 收集所有文件路径用于分块
-    
     # 🎯 添加文件解析统计
     files_parsed = []
     files_skipped = []
@@ -702,9 +699,6 @@ def parse_project(project_path, project_filter=None):
         for file in files:
             file_path = os.path.join(dirpath, file)
             relative_path = os.path.relpath(file_path, project_path)
-            
-            # 收集所有文件路径（不分后缀名）用于分块
-            all_file_paths.append(file_path)
             
             # 应用文件过滤（仅用于函数解析）
             to_scan = not project_filter.filter_file(dirpath, file)
@@ -772,31 +766,8 @@ def parse_project(project_path, project_filter=None):
 
     print(f"📊 解析完成: 总函数 {len(functions)} 个，过滤掉 {filtered_out_count} 个（constructor/fallback/receive等），待检查 {len(functions_to_check)} 个")
     
-    # 对项目中的所有文件进行分块（不分后缀名）
-    print("🧩 开始对项目文件进行分块...")
-    
-    # 获取分块配置 - 项目解析默认使用代码项目配置
-    config = ChunkConfigManager.get_config('code_project')
-    print(f"📋 使用配置: code_project")
-    
-    # 处理文件分块
-    chunks = chunk_project_files(all_file_paths, config=config)
-    
-    print(f"✅ 分块完成: 共生成 {len(chunks)} 个文档块")
-    
-    # 输出分块统计信息
-    if chunks:
-        chunk_stats = {}
-        for chunk in chunks:
-            ext = chunk.metadata.get('file_extension', 'unknown') if hasattr(chunk, 'metadata') else 'unknown'
-            chunk_stats[ext] = chunk_stats.get(ext, 0) + 1
-        
-        print("📊 分块统计:")
-        for ext, count in sorted(chunk_stats.items()):
-            ext_display = ext if ext else '[无扩展名]'
-            print(f"  - {ext_display}: {count} 个块")
-    
-    return functions, functions_to_check, chunks
+    # 新版：不生成 chunks
+    return functions, functions_to_check, []
 
 
 if __name__ == "__main__":

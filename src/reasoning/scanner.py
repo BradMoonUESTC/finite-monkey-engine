@@ -1,4 +1,5 @@
 import os
+import re
 from typing import List, Dict, Any, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from tqdm import tqdm
@@ -10,19 +11,22 @@ from prompt_factory.core_prompt import CorePrompt
 from prompt_factory.assumption_validation_prompt import AssumptionValidationPrompt
 from prompt_factory.vul_reasoning_json_prompt import VulReasoningJsonPrompt
 from prompt_factory.prompt_assembler import PromptAssembler
-from openai_api.openai import detect_vulnerabilities, analyze_code_assumptions
+from openai_api.openai import analyze_code_assumptions
 from logging_config import get_logger
 import json
 from dao.entity import Project_Finding
 from dao.finding_mgr import ProjectFindingMgr
+from codex_service import CodexClient
+from codex_runner import CodexCliError
 
 
 class VulnerabilityScanner:
     """漏洞扫描器，负责智能合约代码的漏洞扫描"""
     
-    def __init__(self, project_audit):
+    def __init__(self, project_audit, codex_client: Optional[CodexClient] = None):
         self.project_audit = project_audit
         self.logger = get_logger(f"VulnerabilityScanner[{project_audit.project_id}]")
+        self.codex_client = codex_client or CodexClient()
         
         # 🎯 读取项目设计文档（如果启用）
         self.design_doc_content = self._load_design_document()
@@ -228,8 +232,16 @@ The following is the project's design document, which provides important context
                 enhanced_prefix = GroupSummaryPrompt.get_enhanced_reasoning_prompt_prefix()
                 assembled_prompt = enhanced_prefix + group_summary + "\n\n" + "=" * 80 + "\n\n" + assembled_prompt
             
-            # 🎯 reasoning阶段核心漏洞检测统一使用vulnerability_detection配置(claude4sonnet)
-            result = detect_vulnerabilities(assembled_prompt)
+            # 🎯 reasoning阶段：改为 Codex 执行（agentic workflow + 只读检索）
+            project_root = getattr(self.project_audit, "project_path", "") or ""
+            if not project_root:
+                raise RuntimeError("project_audit.project_path is empty; cannot set codex --cd workspace")
+
+            codex_res = self.codex_client.exec(workspace_root=project_root, prompt=assembled_prompt)
+            if codex_res.returncode != 0:
+                raise CodexCliError(f"codex reasoning failed: {codex_res.stderr.strip()}")
+
+            result = self._extract_json_object_or_raise(codex_res.stdout)
             
             # 保存结果
             if hasattr(task, 'id') and task.id:
@@ -245,6 +257,49 @@ The following is the project's design document, which provides important context
         except Exception as e:
             print(f"❌ 漏洞扫描执行失败: {e}")
             return ""
+
+    @staticmethod
+    def _extract_json_object_or_raise(text: str) -> str:
+        """
+        Codex stdout 可能包含 agentic workflow 的“Explored/exec ...”等非 JSON 文本。
+        这里做稳健提取：优先取 ```json ...```，否则尝试从文本中解析第一个 JSON 对象。
+        返回：可被 json.loads 解析且为 dict 的 JSON 字符串。
+        """
+        s = (text or "").strip()
+        if not s:
+            raise ValueError("empty codex output")
+
+        # fenced json
+        m = re.search(r"```json\\s*([\\s\\S]*?)\\s*```", s, re.IGNORECASE)
+        if m:
+            candidate = m.group(1).strip()
+            obj = json.loads(candidate)
+            if not isinstance(obj, dict):
+                raise ValueError("codex fenced json is not an object")
+            return candidate
+
+        # raw decode: find first JSON object
+        dec = json.JSONDecoder()
+        for i, ch in enumerate(s):
+            if ch != "{":
+                continue
+            try:
+                obj, end = dec.raw_decode(s[i:])
+                if isinstance(obj, dict):
+                    return s[i : i + end]
+            except Exception:
+                continue
+
+        # fallback: first '{' last '}' slice
+        l = s.find("{")
+        r = s.rfind("}")
+        if l != -1 and r != -1 and r > l:
+            candidate = s[l : r + 1]
+            obj = json.loads(candidate)
+            if isinstance(obj, dict):
+                return candidate
+
+        raise ValueError("no json object found in codex output")
 
     def _process_single_task_standard(self, task, task_manager, filter_func, is_gpt4):
         """标准模式处理单个任务"""

@@ -41,42 +41,9 @@ def scan_project(project, db_engine):
     parsing_duration = time.time() - parsing_start
     log_success(logger, "项目解析完成", f"耗时: {parsing_duration:.2f}秒")
     log_data_info(logger, "解析的函数", len(project_audit.functions_to_check))
-    log_data_info(logger, "调用树", len(project_audit.call_trees))
-    log_data_info(logger, "调用图", len(project_audit.call_graphs))
+    # 新版 planning 不再需要调用树/调用图
     
-    # 1.5 初始化RAG处理器（可选）
-    log_step(logger, "初始化RAG处理器")
-    rag_processor = None
-    try:
-        from context.rag_processor import RAGProcessor
-        rag_start = time.time()
-        
-        # 传递project_audit对象，包含functions, functions_to_check, chunks
-        rag_processor = RAGProcessor(
-            project_audit, 
-            "./src/codebaseQA/lancedb", 
-            project.id
-        )
-        
-        rag_duration = time.time() - rag_start
-        log_success(logger, "RAG处理器初始化完成", f"耗时: {rag_duration:.2f}秒")
-        log_data_info(logger, "基于tree-sitter解析的函数构建RAG", len(project_audit.functions_to_check))
-        log_data_info(logger, "基于文档分块构建RAG", len(project_audit.chunks))
-        log_data_info(logger, "使用调用树构建关系型RAG", len(project_audit.call_trees))
-        log_data_info(logger, "集成调用图(Call Graph)", len(project_audit.call_graphs))
-        
-        # 显示 call graph 统计信息
-        if project_audit.call_graphs:
-            call_graph_stats = project_audit.get_call_graph_statistics()
-            log_data_info(logger, "Call Graph统计", call_graph_stats)
-        
-    except ImportError as e:
-        log_warning(logger, "RAG处理器不可用，将使用简化功能")
-        print(e)
-        logger.debug(f"ImportError详情: {e}")
-    except Exception as e:
-        log_error(logger, "RAG处理器初始化失败", e)
-        rag_processor = None
+    # 新版 planning：删除 RAG 相关逻辑（不再初始化向量库/文档分块）
     
 
     
@@ -85,32 +52,43 @@ def scan_project(project, db_engine):
     project_taskmgr = ProjectTaskMgr(project.id, db_engine) 
     log_success(logger, "任务管理器创建完成")
     
+    # Codex 通用对象：建议在入口创建一次并向下传递（planning/reasoning/validation 可复用同一配置）
+    from codex_service import CodexClient
+    codex_client = CodexClient()
+
     # 创建规划处理器，直接传递project_audit
     log_step(logger, "创建规划处理器")
-    planning = Planning(project_audit, project_taskmgr)
+    planning = Planning(project_audit, project_taskmgr, codex_client=codex_client)
     log_success(logger, "规划处理器创建完成")
     
-    # 如果有RAG处理器，初始化planning的RAG功能
-    if rag_processor:
-        log_step(logger, "初始化规划器的RAG功能")
-        planning.initialize_rag_processor("./src/codebaseQA/lancedb", project.id)
-        log_success(logger, "规划器RAG功能初始化完成")
+    # 新版 planning：无 RAG 初始化
     
     # 创建AI引擎
     log_step(logger, "创建AI引擎")
-    lancedb_table = rag_processor.db if rag_processor else None
-    lancedb_table_name = rag_processor.table_name if rag_processor else f"lancedb_{project.id}"
-    logger.info(f"LanceDB表名: {lancedb_table_name}")
-    
-    engine = AiEngine(planning, project_taskmgr, lancedb_table, lancedb_table_name, project_audit)
+    lancedb_table = None
+    lancedb_table_name = ""
+    engine = AiEngine(planning, project_taskmgr, lancedb_table, lancedb_table_name, project_audit, codex_client=codex_client)
     log_success(logger, "AI引擎创建完成")
     
     # 执行规划和扫描
     log_step(logger, "执行项目规划")
     planning_start = time.time()
-    engine.do_planning()
+    planning_res = engine.do_planning()
     planning_duration = time.time() - planning_start
     log_success(logger, "项目规划完成", f"耗时: {planning_duration:.2f}秒")
+    if isinstance(planning_res, dict):
+        cov = planning_res.get("coverage_final")
+        flows_total = planning_res.get("flows_total")
+        rule_keys_total = planning_res.get("rule_keys_total")
+        tasks_created = planning_res.get("tasks_created")
+        logger.info(f"[planning_result] coverage_final={cov}, flows_total={flows_total}, rule_keys_total={rule_keys_total}, tasks_created={tasks_created}")
+
+    # 运行到 planning 后提前停止（用于“正经 main.py 流程”调试）
+    if os.getenv("STOP_AFTER_PLANNING", "false").lower() == "true":
+        log_warning(logger, "STOP_AFTER_PLANNING=true，已完成 planning，将在 reasoning 前停止")
+        total_scan_duration = time.time() - scan_start_time
+        log_section_end(logger, "项目扫描", total_scan_duration)
+        return lancedb_table, lancedb_table_name, project_audit
     
     log_step(logger, "执行漏洞扫描(Reasoning)")
     scan_start = time.time()
@@ -130,6 +108,35 @@ def scan_project(project, db_engine):
 
     return lancedb_table, lancedb_table_name, project_audit
 
+
+def plan_project(project, db_engine):
+    """
+    仅执行 planning（用于调试 business flow planning，避免跑 reasoning/validation）。
+    """
+    logger = get_logger("plan_project")
+    start_time = time.time()
+    log_section_start(logger, "仅Planning", f"项目ID: {project.id}, 路径: {project.path}")
+
+    log_step(logger, "Tree-sitter解析项目", f"项目路径: {project.path}")
+    project_audit = ProjectAudit(project.id, project.path, db_engine)
+    project_audit.parse()
+    log_success(logger, "项目解析完成", f"待检查函数数: {len(project_audit.functions_to_check)}")
+
+    log_step(logger, "创建任务管理器")
+    project_taskmgr = ProjectTaskMgr(project.id, db_engine)
+
+    # Codex 通用对象：入口处统一创建一次并向下传递
+    from codex_service import CodexClient
+    codex_client = CodexClient()
+
+    log_step(logger, "执行Planning（Codex业务流抽取）")
+    planning = Planning(project_audit, project_taskmgr, codex_client=codex_client)
+    res = planning.do_planning()
+    log_success(logger, "Planning完成", f"result={res}")
+
+    log_section_end(logger, "仅Planning", time.time() - start_time)
+    return res
+
 def check_function_vul(engine, lancedb, lance_table_name, project_audit):
     """执行漏洞检查（新版：只验证 project_finding 表），直接使用project_audit数据"""
     logger = get_logger("check_function_vul")
@@ -144,7 +151,10 @@ def check_function_vul(engine, lancedb, lance_table_name, project_audit):
     # 新版：只对 finding 表执行验证
     log_step(logger, "初始化Finding漏洞检查器")
     from validating.finding_checker import FindingVulnerabilityChecker
-    checker = FindingVulnerabilityChecker(project_audit, engine)
+    # Codex 通用对象：入口处统一配置一次，后续各阶段复用同一套设置
+    from codex_service import CodexClient
+    codex_client = CodexClient()
+    checker = FindingVulnerabilityChecker(project_audit, engine, codex_client=codex_client)
     log_success(logger, "Finding漏洞检查器初始化完成")
     
     # 执行漏洞检查
@@ -218,7 +228,7 @@ if __name__ == '__main__':
         log_success(main_logger, "数据集加载完成", f"找到 {len(projects)} 个项目")
  
         # 设置项目参数
-        project_id = 'dca5555'  # 使用存在的项目ID
+        project_id = 'debox6666'  # 使用存在的项目ID
         project_path = ''
         main_logger.info(f"目标项目ID: {project_id}")
         project = Project(project_id, projects[project_id])
@@ -228,12 +238,19 @@ if __name__ == '__main__':
         scan_mode = os.getenv("SCAN_MODE","SPECIFIC_PROJECT")
         main_logger.info(f"扫描模式: {scan_mode}")
         
-        cmd = 'detect_vul'
+        cmd = os.getenv("CMD", "detect_vul")
         main_logger.info(f"执行命令: {cmd}")
         
-        if cmd == 'detect_vul':
+        if cmd == 'planning_only':
+            plan_project(project, engine)
+        elif cmd == 'detect_vul':
             # 执行项目扫描
             lancedb,lance_table_name,project_audit=scan_project(project, engine) # scan
+
+            # 如果只需要跑到 planning（reasoning 前停止），此处直接退出整个 main 流程
+            if os.getenv("STOP_AFTER_PLANNING", "false").lower() == "true":
+                main_logger.info("STOP_AFTER_PLANNING=true：已完成 planning，跳过 reasoning/validation/导出并退出")
+                sys.exit(0)
             
             # 根据扫描模式决定是否执行漏洞验证
             if scan_mode in ["COMMON_PROJECT", "PURE_SCAN", "CHECKLIST", "COMMON_PROJECT_FINE_GRAINED"]:

@@ -9,11 +9,9 @@ Tree-sitter Based Project Parser
 # 导出tree-sitter的原生实现
 from .project_parser import parse_project, TreeSitterProjectFilter
 from .project_audit import TreeSitterProjectAudit
-from .call_tree_builder import TreeSitterCallTreeBuilder
 
 __all__ = [
     'parse_project',
     'TreeSitterProjectFilter', 
     'TreeSitterProjectAudit',
-    'TreeSitterCallTreeBuilder'
 ] 

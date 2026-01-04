@@ -18,15 +18,9 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 try:
     from .project_parser import parse_project, TreeSitterProjectFilter
-    from .call_tree_builder import TreeSitterCallTreeBuilder
 except ImportError:
     # 如果相对导入失败，尝试直接导入
     from project_parser import parse_project, TreeSitterProjectFilter
-    from call_tree_builder import TreeSitterCallTreeBuilder
-
-# 导入call_graph相关模块
-from ts_parser_core import MultiLanguageAnalyzer, LanguageType
-from ts_parser_core.ts_parser.data_structures import CallGraphEdge
 
 # 导入日志系统
 try:
@@ -45,15 +39,14 @@ class TreeSitterProjectAudit(object):
         self.db_engine = db_engine  # 可选的数据库引擎
         self.functions = []
         self.functions_to_check = []
-        self.chunks = []  # 存储文档分块结果
+        self.chunks = []  # 新版：不再生成文档分块，保持字段以兼容旧接口
         self.tasks = []
         self.taskkeys = set()
-        self.call_tree_builder = TreeSitterCallTreeBuilder()
+        # 新版：planning 不再需要调用树/调用图，保留字段但不构建
+        self.call_tree_builder = None
         self.call_trees = []
-        
-        # 初始化call_graph相关属性
-        self.call_graphs = []  # 存储所有语言的call_graph
-        self.analyzer = MultiLanguageAnalyzer()
+        self.call_graphs = []
+        self.analyzer = None
         
         # 初始化日志
         if LOGGING_AVAILABLE:
@@ -69,7 +62,7 @@ class TreeSitterProjectAudit(object):
 
     def parse(self):
         """
-        解析项目文件并构建调用树
+        解析项目文件（新版：仅解析函数清单；不构建调用树/调用图；不生成 chunks）
         """
         if self.logger:
             log_step(self.logger, "创建项目过滤器")
@@ -82,7 +75,7 @@ class TreeSitterProjectAudit(object):
         functions, functions_to_check, chunks = parse_project(self.project_path, parser_filter)
         self.functions = functions
         self.functions_to_check = functions_to_check
-        self.chunks = chunks
+        self.chunks = chunks or []
         
         if self.logger:
             log_success(self.logger, "项目文件解析完成")
@@ -90,22 +83,9 @@ class TreeSitterProjectAudit(object):
             log_data_info(self.logger, "待检查函数数", len(self.functions_to_check))
             log_data_info(self.logger, "文档分块数", len(self.chunks))
         
-        # 使用TreeSitterCallTreeBuilder构建调用树
-        if self.logger:
-            log_step(self.logger, "开始构建调用树")
-        else:
-            print("🌳 开始构建调用树...")
-            
-        self.call_trees = self.call_tree_builder.build_call_trees(functions_to_check, max_workers=1)
-        
-        if self.logger:
-            log_success(self.logger, "调用树构建完成")
-            log_data_info(self.logger, "构建的调用树", len(self.call_trees))
-        else:
-            print(f"✅ 调用树构建完成，共构建 {len(self.call_trees)} 个调用树")
-        
-        # 构建 call graph
-        self._build_call_graphs()
+        # 新版：不构建调用树 / call graph
+        self.call_trees = []
+        self.call_graphs = []
 
     def get_function_names(self):
         """获取所有函数名称"""
