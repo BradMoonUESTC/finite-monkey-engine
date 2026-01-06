@@ -97,6 +97,35 @@ Watcher、Reasoner、Ideator 这三种角色已经在两次真实 audit 中验�
 - 输出下一轮 `watcher_instruction`（必须是可执行的：要检索的关键词/文件/变量/分支）
 - 给出下一轮预算：`max_more_rounds / time_limit_sec / no_progress_rounds`
 
+**职责 4：记忆体与资料管理员（必须随取随用）**：
+Watcher 不仅要“控制流程”，还要负责把该 task 的“可复用材料”持续沉淀，并在每一轮为 Reasoner/Ideator 提供可直接注入的上下文（等价于维护同一个对话 thread 的可检索记忆）。
+
+需要保存的内容（按粒度分层）：
+- **对话历史（dialogue_history）**：
+  - 每一轮的 watcher_instruction、Reasoner 过程态输出摘要、Watcher 决策（continue/pivot/stop）、Ideator 输出摘要
+  - 需要可按轮次回放，也要能按关键词/标签检索（避免把整段历史全量塞回 prompt 导致膨胀）
+- **阶段结论（conclusions）**：
+  - 已确认的结论（confirmed）：例如“权限保护已确认”“某路径不可达”“某数值边界可被绕过”
+  - 已否定的假设（rejected）：记录反证与证据引用，防止重复挖同一死路
+  - 未决疑点（open_questions）：必须可执行（下一步如何验证）
+- **项目文档与证据摘录（docs/evidence snippets）**：
+  - README/spec/NatSpec/注释/关键结构体定义等的摘录与引用位置（file/path）
+  - 作为“intended design 判断”和“误报排除”的第一手材料
+- **预设内容（presets）**：
+  - 预设的审计规则片段/提示片段/反证检查模板（例如“可达性检查”“权限检查”“资金流检查”）
+  - 预设的通用探针（rg 关键词集合、常见危险模式清单）
+
+“随时可提取/随时可使用”的取用方式（落地口径）：
+- Watcher 维护一个可检索的 `memory_store`（结构化 JSON），支持按：
+  - `tag`（如 access_control / funds / lifecycle / signature）
+  - `keyword`（如 withdraw/refund/pause/upgrade）
+  - `evidence_ref`（file:line 或 function 名）
+ 进行检索，返回“最小必要上下文片段”供下一轮注入。
+
+存储位置建议（不写代码，但必须能落地）：
+- **短期/单 task**：写入 `project_task.scan_record`（保存结构化摘要与索引）
+- **长文本/原文**：写入 `logs/reasoning_<project_id>/<task_id>/<round>/`（stdout/stderr、文档摘录原文等），scan_record 里只保存路径与哈希
+
 ##### 3) Ideator（发散引擎：负责提供“可验证的新角度”）
 **核心职责**：在预算内给出少量“可检索、可验证”的新方向，避免泛泛建议。
 
