@@ -62,11 +62,22 @@ Watcher、Reasoner、Ideator 这三种角色已经在两次真实 audit 中验�
 - `business_flow_code`：该 task 的主代码包
 - `rule_key` + `rule_list`：该维度的 checklist
 - `watcher_instruction`：Watcher 给出的本轮目标（要验证什么、要找什么证据）
+- `dialogue_history`：该 task 的历史对话与已验证结论摘要（同一“线程”上下文）
 - `constraints`：必须 JSON 输出、必须给证据、不得输出 intended design/纯建议
 
-**输出**（固定 JSON，便于机器处理；保持现有多漏洞 schema 不变）：
+**输出**（分为“过程态输出”和“收敛态输出”，都必须可机器解析）：
+
+1) **过程态输出（更常见）**：Reasoner 不一定直接给漏洞，可能先给分析结果与下一步方向，用于驱动继续挖掘。
+- 建议写入 `project_task.scan_record.rounds[*]` 的 `reasoner_analysis` 字段：
+  - `analysis_summary`：本轮核心结论（证据导向）
+  - `checked_hypotheses`：本轮验证了哪些点、结论是成立/不成立/不确定
+  - `open_questions`：仍未解开的疑点（越具体越好）
+  - `next_actions`：下一轮要做的动作（可检索的关键词/文件/变量/分支），这是 Reasoner 最重要的产物
+  - `suggest_stop`：Reasoner 建议 `continue/stop`（最终仍由 Watcher 裁决）
+
+2) **收敛态输出（由 Watcher 触发）**：当 Watcher 判断“信息足够，需要产出漏洞条目并落库”时，要求 Reasoner 输出保持现有 schema 的多漏洞 JSON（用于 `project_task.result` 与拆分写入 finding）。
 - `{"schema_version":"1.0","vulnerabilities":[{"description":"..."}]}`（0..N 条）
-- 同时在 `description` 内必须包含：
+- 每条 `description` 必须包含：
   - 触发条件与影响
   - 证据定位（至少函数名/文件名/关键语句）
   - “为什么不是误报”的反证点（例如权限/前置条件/不可达性已排除）
@@ -103,11 +114,15 @@ Watcher、Reasoner、Ideator 这三种角色已经在两次真实 audit 中验�
 
 对每条 `project_task`（一行）：
 1) **Watcher 初始化**：读取 task 输入（business_flow_code/rule_key/rule_list），设置预算（如 3~6 轮），生成首轮 watcher_instruction。
-2) **Reasoner 执行**：基于 watcher_instruction 输出多漏洞 JSON（可为 0）。
-3) **拆分入库（保持现有逻辑）**：把 `project_task.result` 拆分成 `project_finding`（幂等：按 task_id 先删后建）。
-4) **Watcher 评估**：对比本轮前后状态，决定 `continue/pivot/stop`，并记录本轮轨迹。
+2) **Reasoner 执行（同一对话线程）**：
+   - Watcher 把历史 `dialogue_history` 一并提供给 Reasoner（等价于在同一个对话 thread 里继续）。
+   - 默认先产出“过程态输出”（分析结果 + next_actions），写入 scan_record。
+3) **Watcher 评估**：对比本轮前后状态，决定 `continue/pivot/stop`，并记录本轮轨迹。
 5) **Ideator（仅在需要时）**：当 Watcher 判定 `pivot` 或“本轮无增益”时触发，产出新的 probes，供下一轮 watcher_instruction 使用。
-6) 重复 2~5 直到 stop。
+6) **收敛落库（由 Watcher 触发）**：
+   - 当 Watcher 判断“可以收敛”时，向 Reasoner 发出“收敛态输出”指令，让其输出多漏洞 JSON 写入 `project_task.result`。
+   - 然后执行 **拆分入库（保持现有逻辑）**：把 `project_task.result` 拆分成 `project_finding`（幂等：按 task_id 先删后建）。
+7) 重复 2~6 直到 stop（或收敛后直接 stop）。
 
 #### “过程记录”怎么写进系统（必须可追溯）
 
